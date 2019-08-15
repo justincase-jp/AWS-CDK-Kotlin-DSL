@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm") version "1.3.41"
+    id("maven-publish")
 }
 
 group = "jp.justincase"
@@ -33,5 +34,19 @@ subprojects {
 
     tasks.withType<KotlinCompile> {
         kotlinOptions.jvmTarget = "1.8"
+    }
+}
+
+tasks.getByPath(":generated:compileKotlin").dependsOn(tasks.getByPath(":generator:run"))
+
+publishing {
+    publications {
+        register("maven", MavenPublication::class.java) {
+            groupId = project.group as String
+            artifactId = project.name
+            version = project.version as String
+
+            from(project(":generated").components["java"])
+        }
     }
 }
