@@ -12,6 +12,12 @@ val file = FileSpec.builder("jp.justincase.cdkdsl", "ResourceConstructDsl")
 
 fun genResourceConstructResource(classes: Sequence<Class<out Any>>) {
     file.addAnnotation(AnnotationSpec.builder(Suppress::class).addMember("%S", "FunctionName").build())
+    /*
+    生成対象となるクラスの条件
+    ・software.amazon.awscdk.core.Resourceのサブクラスであること
+    ・いずれかのコンストラクターが"props"という名前の〇〇Props系のクラスを引数に持っていること
+    ・インターフェース・アノテーション・Enum・抽象クラスでないこと
+     */
     classes
         .filter(::isResourceSubClass)
         .filter(::checkConstructorHasPropertyArgument)
@@ -37,8 +43,9 @@ private fun checkConstructorHasPropertyArgument(clazz: Class<*>) =
     clazz.constructors.any { constructor -> constructor.parameters.any(::isPropertyArg) }
 
 private fun generate(clazz: Class<out Resource>) {
-    val constructor = clazz.constructors.single { it.parameters.any(::isPropertyArg) }
-    val propClass = constructor.parameters.single(::isPropertyArg).type
+    val propClass =
+        clazz.constructors.single { it.parameters.any(::isPropertyArg) }.parameters.single(::isPropertyArg).type
+    // PropsクラスがBuilderサブクラスを持っていない場合はDSL化できないので弾く
     val builderClass = propClass.declaredClasses.singleOrNull { it.simpleName == "Builder" } ?: return
     file.addFunction(
         FunSpec.builder(clazz.simpleName)
