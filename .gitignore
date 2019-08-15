@@ -96,7 +96,7 @@ fabric.properties
 
 ### Gradle template
 .gradle
-/build/
+build/
 
 # Ignore Gradle GUI config
 gradle-app.setting
@@ -109,7 +109,7 @@ gradle-app.setting
 
 # # Work around https://youtrack.jetbrains.com/issue/IDEA-116898
 # gradle/wrapper/gradle-wrapper.properties
-/generated/
-/generator/build/
+
+/generated/*
 !/generated/build.gradle.kts
 .idea/
