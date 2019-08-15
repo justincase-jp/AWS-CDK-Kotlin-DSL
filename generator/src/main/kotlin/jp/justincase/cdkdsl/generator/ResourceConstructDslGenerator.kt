@@ -11,7 +11,7 @@ import java.util.*
 val file = FileSpec.builder("jp.justincase.cdkdsl", "ResourceConstructDsl")
 
 fun genResourceConstructResource(classes: Sequence<Class<out Any>>) {
-    file.addAnnotation(AnnotationSpec.builder(Suppress::class).addMember("%S", "FunctionName").build())
+    file.addAnnotation(AnnotationSpec.builder(Suppress::class).addMember("%S", "FunctionName, Unused").build())
     /*
     生成対象となるクラスの条件
     ・software.amazon.awscdk.core.Resourceのサブクラスであること
