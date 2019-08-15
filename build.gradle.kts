@@ -6,22 +6,17 @@ plugins {
     id("maven-publish")
 }
 
-group = "jp.justincase"
-version = "0.0.1"
-
-repositories {
-    mavenCentral()
-}
-
-subprojects {
-    apply<KotlinPluginWrapper>()
-
+allprojects {
     group = "jp.justincase"
     version = "0.0.1"
 
     repositories {
         mavenCentral()
     }
+}
+
+subprojects {
+    apply<KotlinPluginWrapper>()
 
     dependencies {
         implementation(kotlin("stdlib-jdk8"))
