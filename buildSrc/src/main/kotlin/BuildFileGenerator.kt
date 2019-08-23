@@ -28,7 +28,7 @@ fun generateBuildFile(
     }
     File(targetDir, "settings.gradle").apply {
         createNewFile()
-        writeText(settingsGradleFileText)
+        writeText(settingsGradleFileText(cdkModule))
     }
     ProcessBuilder("gradle", "run", "clean", "bintrayUpload").run {
         inheritIO()
@@ -51,7 +51,7 @@ import com.jfrog.bintray.gradle.BintrayExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinPluginWrapper
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
-group = "jp.justincase"
+group = "jp.justincase.aws-cdk-kotlin-dsl"
 version = "$cdkVersion-${projectVersion.split('-')[1]}"
 
 repositories {
@@ -112,6 +112,6 @@ tasks.withType<KotlinCompile> {
 }
 """
 
-private val settingsGradleFileText: String = """
-rootProject.name = "aws-cdk-kotlin-dsl"
+private fun settingsGradleFileText(module: String) = """
+rootProject.name = "$module"
 """
