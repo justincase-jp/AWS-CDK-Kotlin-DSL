@@ -52,12 +52,22 @@ publishing {
     }
 }
 
-val taskCheckCdkUpdate by tasks.register("checkCdkUpdate") {
+val taskGetCdkModules by tasks.register("getCdkModules") {
     this.group = "auto update"
     doLast {
-        val list = getCdkUpdatedVersions()
-        list.forEach {
-            println(it)
+        getCdkModules()
+    }
+}
+
+val taskCheckCdkUpdate by tasks.register("checkCdkUpdate") {
+    this.group = "auto update"
+    this.dependsOn(taskGetCdkModules)
+    doLast {
+        cdkModuleList.forEach { module ->
+            val list = getCdkUpdatedVersions(module)
+            list.forEach {
+                println(it)
+            }
         }
     }
 }
@@ -85,6 +95,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
     val taskCreateBintrayPackage = tasks.register("createBintrayPackage") {
         this.group = "auto update"
         doLast {
+            this.dependsOn(taskGetCdkModules)
             createBintrayPackages(bintrayUser, bintrayKey)
         }
     }
@@ -95,14 +106,36 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         this.dependsOn(taskCreateBintrayPackage)
         this.dependsOn(tasks.getByPath(":generator:publishToMavenLocal"))
         doLast {
-            updatedCdkVersionList.forEach {
+            updatedCdkVersions.forEach { (module, list) ->
+                list.forEach {
+                    generateBuildFile(
+                        project.version as String,
+                        it,
+                        module,
+                        kotlinVersion,
+                        bintrayUser,
+                        bintrayKey,
+                        File(buildDir, "cdkdsl/$module")
+                    )
+                }
+            }
+        }
+    }
+
+    tasks.register("generateAndUploadForAllModule") {
+        this.group = "auto update"
+        this.dependsOn(taskCreateBintrayPackage)
+        this.dependsOn(tasks.getByPath(":generator:publishToMavenLocal"))
+        doLast {
+            cdkModuleList.forEach {
                 generateBuildFile(
                     project.version as String,
+                    null,
                     it,
                     kotlinVersion,
                     bintrayUser,
                     bintrayKey,
-                    File(buildDir, "cdkdsl")
+                    File(buildDir, "cdkdsl/$it")
                 )
             }
         }

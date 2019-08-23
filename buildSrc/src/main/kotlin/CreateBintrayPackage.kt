@@ -14,9 +14,26 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 
-const val requestUrl = "http://search.maven.org/solrsearch/select?q=g:software.amazon.awscdk&rows=200&wt=json&start=0"
+private const val requestUrl =
+    "http://search.maven.org/solrsearch/select?q=g:software.amazon.awscdk&rows=200&wt=json&start=0"
 private val apiBaseUrl = "https://api.bintray.com/packages/justincase/aws-cdk-kotlin-dsl"
 
+lateinit var cdkModuleList: List<String>
+    private set
+
+@KtorExperimentalAPI
+fun getCdkModules(): List<String> {
+    val client = HttpClient(CIO)
+    val response = runBlocking { client.get<String>(requestUrl) }
+    val obj = jacksonObjectMapper().readValue<ResponseJson>(response)
+    cdkModuleList = obj.response.docs.filter { it.ec.containsAll(listOf(".jar", ".pom")) }.map { it.a }
+    return cdkModuleList
+}
+
+/**
+ * 必ず事前に[cdkModuleList]を呼び出しておくこと。
+ * さもなくばエラー
+ */
 @KtorExperimentalAPI
 fun createBintrayPackages(
     bintrayUser: String,
@@ -30,10 +47,7 @@ fun createBintrayPackages(
             }
         }
     }
-    val response = runBlocking { client.get<String>(requestUrl) }
-    val obj = jacksonObjectMapper().readValue<ResponseJson>(response)
-    val packageList = obj.response.docs.filter { it.ec.containsAll(listOf(".jar", ".pom")) }.map { it.a }
-    val requests = packageList.associateWith {
+    val requests = cdkModuleList.associateWith {
         GlobalScope.async {
             client.get<HttpStatusCode>("$apiBaseUrl/$it")
         }
@@ -42,7 +56,6 @@ fun createBintrayPackages(
     }.filterValues { it != HttpStatusCode.OK }.keys.map {
         GlobalScope.async {
             client.post<String>(apiBaseUrl) {
-                //header("Content-Type", "application/json; charset=UTF8")
                 body = TextContent(
                     jacksonObjectMapper().writeValueAsString(
                         BintrayCreatePackageRequestJson(

@@ -2,32 +2,46 @@ import java.io.File
 
 fun generateBuildFile(
     projectVersion: String,
-    cdkVersion: Version,
+    cdkVersion: Version?,
+    cdkModule: String,
     kotlinVersion: String,
     bintrayUser: String,
     bintrayApiKey: String,
     baseDir: File
 ) {
-    val targetDir = File(baseDir, cdkVersion.version)
+    val targetCdkVersion = cdkVersion?.toString() ?: "latest.release"
+    val targetDir = File(baseDir, targetCdkVersion)
     targetDir.mkdirs()
     File(targetDir, "build.gradle.kts").apply {
         createNewFile()
-        writeText(getBuildFileText(projectVersion, cdkVersion, kotlinVersion, bintrayUser, bintrayApiKey, targetDir))
+        writeText(
+            getBuildFileText(
+                projectVersion,
+                targetCdkVersion,
+                cdkModule,
+                kotlinVersion,
+                bintrayUser,
+                bintrayApiKey,
+                targetDir
+            )
+        )
     }
     File(targetDir, "settings.gradle").apply {
         createNewFile()
         writeText(settingsGradleFileText)
     }
-    val pb = ProcessBuilder("gradle", "run", "clean", "bintrayUpload")
-    pb.inheritIO()
-    pb.directory(targetDir)
-    pb.environment()["PATH"] = System.getenv("PATH")
-    pb.start().waitFor()
+    ProcessBuilder("gradle", "run", "clean", "bintrayUpload").run {
+        inheritIO()
+        directory(targetDir)
+        environment()["PATH"] = System.getenv("PATH")
+        start()
+    }.waitFor()
 }
 
 private fun getBuildFileText(
     projectVersion: String,
-    cdkVersion: Version,
+    cdkVersion: String,
+    cdkModule: String,
     kotlinVersion: String,
     bintrayUser: String,
     bintrayApiKey: String,
@@ -57,8 +71,7 @@ dependencies {
     // generator
     runtime("jp.justincase:cdk-dsl-generator:$projectVersion")
     // AWS CDK
-    implementation("software.amazon.awscdk", "lambda", "$cdkVersion")
-    implementation("software.amazon.awscdk", "logs-destinations", "$cdkVersion")
+    implementation("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
 }
 
 application {
@@ -82,8 +95,8 @@ bintray {
     publish = true
     pkg(delegateClosureOf<BintrayExtension.PackageConfig> {
         userOrg = "justincase"
-            repo = "Maven"
-            name = "aws-cdk-kotlin-dsl"
+            repo = "aws-cdk-kotlin-dsl"
+            name = "$cdkModule"
             version(delegateClosureOf<BintrayExtension.VersionConfig> {
             name = project.version as String
         })

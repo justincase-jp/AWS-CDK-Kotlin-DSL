@@ -1,32 +1,41 @@
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.get
+import io.ktor.client.response.HttpResponse
+import io.ktor.client.response.readText
+import io.ktor.http.HttpStatusCode
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.runBlocking
 import org.w3c.dom.Node
 import org.w3c.dom.NodeList
 import javax.xml.parsers.DocumentBuilderFactory
 
-const val THIS_MAVEN_METADATA_URL =
-    "https://dl.bintray.com/justincase/Maven/jp/justincase/aws-cdk-kotlin-dsl/maven-metadata.xml"
-const val CDK_MAVEN_METADATA_URL = "https://repo1.maven.org/maven2/software/amazon/awscdk/core/maven-metadata.xml"
-
-lateinit var updatedCdkVersionList: List<Version>
+private val cdkVersionMap: MutableMap<String, List<Version>> = mutableMapOf()
+val updatedCdkVersions: Map<String, List<Version>> = cdkVersionMap.toMap()
 
 @KtorExperimentalAPI
 private val client = HttpClient(CIO)
 
 @KtorExperimentalAPI
-fun getCdkUpdatedVersions(): List<Version> {
+fun getCdkUpdatedVersions(module: String): List<Version> {
+    fun getDslMavenMetadataUrl() =
+        "https://dl.bintray.com/justincase/aws-cdk-kotlin-dsl/jp/justincase/aws-cdk-kotlin-dsl/$module/maven-metadata.xml"
+
+    fun getCdkMavenMetadataUrl() = "https://repo1.maven.org/maven2/software/amazon/awscdk/$module/maven-metadata.xml"
+
     fun getLatestGeneratedCdkVersion(): Version {
-        val xmlString = runBlocking { client.get<String>(THIS_MAVEN_METADATA_URL) }
+        val response = runBlocking { client.get<HttpResponse>(getDslMavenMetadataUrl()) }
+        if (response.status != HttpStatusCode.OK) {
+            return Version("0.0.0")
+        }
+        val xmlString = runBlocking { response.readText() }
         val doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(xmlString.byteInputStream())
         val lastVersionString = doc.getElementsByTagName("latest").item(0).textContent.split('-')[0]
         return Version(lastVersionString)
     }
 
     fun getCdkVersionList(): List<Version> {
-        val xmlString = runBlocking { client.get<String>(CDK_MAVEN_METADATA_URL) }
+        val xmlString = runBlocking { client.get<String>(getCdkMavenMetadataUrl()) }
         val doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(xmlString.byteInputStream())
         return doc.getElementsByTagName("versions").item(0).childNodes.asList().filter { it.nodeName == "version" }
             .map { Version(it.textContent) }
@@ -34,8 +43,9 @@ fun getCdkUpdatedVersions(): List<Version> {
 
     val last = getLatestGeneratedCdkVersion()
     val cdkVersionList = getCdkVersionList()
-    updatedCdkVersionList = cdkVersionList.filter { it > last }
-    return updatedCdkVersionList
+    val list = cdkVersionList.filter { it > last }
+    cdkVersionMap[module] = list
+    return list
 }
 
 fun NodeList.asList(): List<Node> {
