@@ -9,7 +9,7 @@ fun generateBuildFile(
     bintrayApiKey: String,
     baseDir: File
 ) {
-    val targetCdkVersion = cdkVersion?.toString() ?: "latest.release"
+    val targetCdkVersion = (cdkVersion ?: latestCrkVersions.getValue(cdkModule)).toString()
     val targetDir = File(baseDir, targetCdkVersion)
     targetDir.mkdirs()
     File(targetDir, "build.gradle.kts").apply {

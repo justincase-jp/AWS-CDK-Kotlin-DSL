@@ -11,7 +11,12 @@ import org.w3c.dom.NodeList
 import javax.xml.parsers.DocumentBuilderFactory
 
 private val cdkVersionMap: MutableMap<String, List<Version>> = mutableMapOf()
-val updatedCdkVersions: Map<String, List<Version>> = cdkVersionMap.toMap()
+val updatedCdkVersions: Map<String, List<Version>>
+    get() = cdkVersionMap.toMap()
+
+private val latestVersionMap: MutableMap<String, Version> = mutableMapOf()
+val latestCrkVersions: Map<String, Version>
+    get() = latestVersionMap.toMap()
 
 @KtorExperimentalAPI
 private val client = HttpClient(CIO)
@@ -43,6 +48,7 @@ fun getCdkUpdatedVersions(module: String): List<Version> {
 
     val last = getLatestGeneratedCdkVersion()
     val cdkVersionList = getCdkVersionList()
+    latestVersionMap[module] = cdkVersionList.last()
     val list = cdkVersionList.filter { it > last }
     cdkVersionMap[module] = list
     return list
