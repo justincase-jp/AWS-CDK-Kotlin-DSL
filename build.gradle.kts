@@ -124,6 +124,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
 
     tasks.register("generateAndUploadForAllModule") {
         this.group = "auto update"
+        this.dependsOn(taskCheckCdkUpdate)
         this.dependsOn(taskCreateBintrayPackage)
         this.dependsOn(tasks.getByPath(":generator:publishToMavenLocal"))
         doLast {
