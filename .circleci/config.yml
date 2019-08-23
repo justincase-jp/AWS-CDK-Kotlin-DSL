@@ -41,7 +41,7 @@ workflows:
           filters: { branches: { only: master } }
   deploy-all:
     jobs:
-      - deployForUpdate
-    filters:
-      - tags:
-          - only: /^v.*/
+      - deployForUpdate:
+          filters:
+            tags: { only: '/^v.*/' }
+            branches: { only: master }
