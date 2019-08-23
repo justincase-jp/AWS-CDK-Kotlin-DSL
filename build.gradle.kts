@@ -62,10 +62,10 @@ val taskCheckCdkUpdate by tasks.register("checkCdkUpdate") {
     }
 }
 
-if (System.getenv("bintray-api-key") != null || System.getenv()["bintray-api-key"] != null || project.hasProperty("bintrayApiKey")) {
-    val bintrayUser = System.getenv("bintray-user") ?: System.getenv()["bintray-user"]
+if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] != null || project.hasProperty("bintrayApiKey")) {
+    val bintrayUser = System.getenv("bintrayUser") ?: System.getenv()["bintrayUser"]
     ?: project.findProperty("bintrayUser") as String
-    val bintrayKey = System.getenv("bintray-api-key") ?: System.getenv()["bintray-api-key"]
+    val bintrayKey = System.getenv("bintrayApiKey") ?: System.getenv()["bintrayApiKey"]
     ?: project.findProperty("bintrayApiKey") as String
     bintray {
         key = bintrayKey
