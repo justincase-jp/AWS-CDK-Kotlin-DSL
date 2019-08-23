@@ -10,7 +10,7 @@ import java.util.*
 
 val file = FileSpec.builder("jp.justincase.cdkdsl", "ResourceConstructDsl")
 
-fun genResourceConstructResource(classes: Sequence<Class<out Any>>) {
+fun genResourceConstructResource(classes: Sequence<Class<out Any>>, targetDir: File) {
     file.addAnnotation(AnnotationSpec.builder(Suppress::class).addMember("%S", "FunctionName, Unused").build())
     /*
     生成対象となるクラスの条件
@@ -26,7 +26,7 @@ fun genResourceConstructResource(classes: Sequence<Class<out Any>>) {
             @Suppress("UNCHECKED_CAST")
             generate(it as Class<out Resource>)
         }
-    file.build().writeTo(File("generated/src/main/kotlin").also { if (!it.exists()) it.mkdirs() })
+    file.build().writeTo(File(targetDir, "src/main/kotlin").also { if (!it.exists()) it.mkdirs() })
 }
 
 // 1行に合成可能だけどtailrecを付けたいのであえて分割
