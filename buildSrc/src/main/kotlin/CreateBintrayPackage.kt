@@ -46,6 +46,7 @@ fun createBintrayPackages(
                 password = bintrayApiKey
             }
         }
+        expectSuccess = false
     }
     val requests = cdkModuleList.associateWith {
         GlobalScope.async {
