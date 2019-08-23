@@ -44,3 +44,4 @@ workflows:
       - deployForUpdate:
           filters:
             tags: { only: '/^v.*/' }
+            branches: {ignore: '/^.*/'}
