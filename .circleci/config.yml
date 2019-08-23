@@ -31,5 +31,5 @@ workflows:
       - deploy
     triggers:
       - schedule:
-          cron: '0 9 * * *'
+          cron: '0 4 * * *'
           filters: { branches: { only: master } }
