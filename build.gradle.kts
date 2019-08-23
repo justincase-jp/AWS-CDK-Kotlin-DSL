@@ -27,6 +27,7 @@ subprojects {
         implementation(kotlin("stdlib-jdk8"))
 
         implementation("com.squareup:kotlinpoet:1.3.0")
+        implementation("com.google.guava:guava:28.0-jre")
         // AWS CDK
         implementation("software.amazon.awscdk", "lambda", awsCdkVersion)
         implementation("software.amazon.awscdk", "logs-destinations", awsCdkVersion)
