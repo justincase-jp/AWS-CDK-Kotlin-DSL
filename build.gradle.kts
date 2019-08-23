@@ -13,7 +13,7 @@ val awsCdkVersion: String by project
 
 allprojects {
     group = "jp.justincase"
-    version = "$awsCdkVersion-0.1.0"
+    version = "$awsCdkVersion-0.1.1"
 
     repositories {
         mavenCentral()
@@ -94,8 +94,8 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
 
     val taskCreateBintrayPackage = tasks.register("createBintrayPackage") {
         this.group = "auto update"
+        this.dependsOn(taskGetCdkModules)
         doLast {
-            this.dependsOn(taskGetCdkModules)
             createBintrayPackages(bintrayUser, bintrayKey)
         }
     }
