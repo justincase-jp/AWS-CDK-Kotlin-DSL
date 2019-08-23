@@ -82,7 +82,7 @@ if (System.getenv("bintray-api-key") != null || System.getenv()["bintray-api-key
         })
     }
 
-    tasks.register("generateForUpdatedCdk") {
+    tasks.register("generateAndUploadForUpdatedCdk") {
         this.group = "auto update"
         this.dependsOn(taskCheckCdkUpdate)
         this.dependsOn(tasks.getByPath(":generator:publishToMavenLocal"))
