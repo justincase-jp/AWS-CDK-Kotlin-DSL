@@ -13,6 +13,8 @@ repositories {
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation("io.ktor:ktor-client-cio:1.2.3")
+    implementation("io.ktor:ktor-client-auth-jvm:1.2.3")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.9.+")
 }
 
 tasks.withType<KotlinCompile> {

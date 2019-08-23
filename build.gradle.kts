@@ -82,9 +82,17 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         })
     }
 
+    val taskCreateBintrayPackage = tasks.register("createBintrayPackage") {
+        this.group = "auto update"
+        doLast {
+            createBintrayPackages(bintrayUser, bintrayKey)
+        }
+    }
+
     tasks.register("generateAndUploadForUpdatedCdk") {
         this.group = "auto update"
         this.dependsOn(taskCheckCdkUpdate)
+        this.dependsOn(taskCreateBintrayPackage)
         this.dependsOn(tasks.getByPath(":generator:publishToMavenLocal"))
         doLast {
             updatedCdkVersionList.forEach {
