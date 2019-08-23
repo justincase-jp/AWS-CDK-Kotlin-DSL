@@ -1,0 +1,35 @@
+version: 2.1
+
+jobs:
+  build:
+    docker:
+      - image: gradle:5.6.0-jdk8
+    steps:
+      - checkout
+      - run: ./gradlew build
+  test:
+    docker:
+      - image: gradle:5.6.0-jdk8
+    steps:
+      - checkout
+      - run: ./gradlew test
+  deploy:
+    docker:
+      - image: gradle:5.6.0-jdk8
+    steps:
+      - checkout
+      - run: ./gradlew generateAndUploadForUpdatedCdk
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build
+      - test
+  deploy:
+    jobs:
+      - deploy
+    triggers:
+      - schedule:
+          cron: '0 9 * * *'
+          filters: { branches: { only: master } }
