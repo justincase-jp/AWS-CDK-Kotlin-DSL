@@ -7,6 +7,10 @@ plugins {
     id("com.jfrog.bintray") version "1.8.4"
 }
 
+tasks.getByName<Wrapper>("wrapper") {
+    gradleVersion = "5.6"
+}
+
 val kotlinVersion: String by project
 val awsCdkVersion: String by project
 
