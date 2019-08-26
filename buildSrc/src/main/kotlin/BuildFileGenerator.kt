@@ -37,6 +37,7 @@ fun generateBuildFile(
             writeText(
                 getGeneratorBuildGradleKtsFileText(
                     projectVersion,
+                    cdkModule,
                     File(targetDir, "generated")
                 )
             )
@@ -152,6 +153,7 @@ bintray {
 
 private fun getGeneratorBuildGradleKtsFileText(
     projectVersion: String,
+    cdkModule: String,
     targetDir: File
 ): String = """
 
@@ -168,7 +170,7 @@ dependencies {
 }
 
 tasks.withType<JavaExec> {
-    args("${targetDir.absolutePath.replace("\\", "\\\\")}")
+    args("$cdkModule", "${targetDir.absolutePath.replace("\\", "\\\\")}")
 }
 """
 

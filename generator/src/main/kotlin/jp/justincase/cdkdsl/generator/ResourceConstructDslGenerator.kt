@@ -5,23 +5,29 @@ import software.amazon.awscdk.core.Construct
 import software.amazon.awscdk.core.IResource
 import software.amazon.awscdk.core.Resource
 import java.io.File
+import java.lang.reflect.Constructor
 import java.lang.reflect.Modifier
 import java.lang.reflect.Parameter
 import java.util.*
 
 val file = FileSpec.builder("jp.justincase.cdkdsl", "ResourceConstructDsl")
 
-fun genResourceConstructResource(classes: Sequence<Class<out Any>>, targetDir: File) {
+fun genResourceConstructResource(classes: Sequence<Class<out Any>>, targetDir: File, moduleName: String) {
     file.addAnnotation(AnnotationSpec.builder(Suppress::class).addMember("%S", "FunctionName, Unused").build())
+    file.addAnnotation(
+        AnnotationSpec.builder(JvmName::class).addMember(
+            "%S",
+            "ResourceConstructDsl${moduleName.capitalize()}"
+        ).build()
+    )
     /*
-    生成対象となるクラスの条件
-    ・software.amazon.awscdk.core.Resourceのサブクラスであること
-    ・いずれかのコンストラクターが"props"という名前の〇〇Props系のクラスを引数に持っていること
-    ・インターフェース・アノテーション・Enum・抽象クラスでないこと
+    Generation target:
+    ・subClass of software.amazon.awscdk.core.Resource or implement IResource
+    ・have specific constructor parameter
+    ・is not interface, annotation, abstract-class, enum
      */
     classes
         .filter(::isResourceSubClass)
-        .filter(::checkConstructorHasPropertyArgument)
         .filter { !it.isInterface && !it.isAnnotation && !it.isEnum && (it.modifiers and Modifier.ABSTRACT) == 0 }
         .forEach {
             @Suppress("UNCHECKED_CAST")
@@ -30,29 +36,32 @@ fun genResourceConstructResource(classes: Sequence<Class<out Any>>, targetDir: F
     file.build().writeTo(File(targetDir, "src/main/kotlin").also { if (!it.exists()) it.mkdirs() })
 }
 
-// 1行に合成可能だけどtailrecを付けたいのであえて分割
 private tailrec fun isResourceSubClass(clazz: Class<*>): Boolean {
-    if (clazz.superclass == Objects::class.java || clazz.superclass == null) {
+    if (clazz.interfaces.contains(IResource::class.java)) {
+        return true
+    } else if (clazz.superclass == Objects::class.java || clazz.superclass == null) {
         return false
-    } else if (clazz.superclass == IResource::class.java) {
+    } else if (clazz.superclass == Resource::class.java) {
         return true
     }
     return isResourceSubClass(clazz.superclass)
 }
 
-private fun checkConstructorHasPropertyArgument(clazz: Class<*>) =
-    clazz.constructors.any { constructor -> constructor.parameters.any(::isPropertyArg) }
+private fun checkConstructorIsValid(constructor: Constructor<*>) =
+    constructor.parameters.size == 3
+            && constructor.parameters[0].type == Construct::class.java
+            && constructor.parameters[1].type == java.lang.String::class.java
+            && isPropertyArg(constructor.parameters[2])
 
 private fun generate(clazz: Class<out Resource>) {
-    clazz.constructors.filter { it.parameters.any(::isPropertyArg) }.forEach { constructor ->
+    clazz.constructors.singleOrNull(::checkConstructorIsValid)?.let { constructor ->
         val propClass = constructor.parameters.single(::isPropertyArg).type
         val builderClass = propClass.declaredClasses.single { it.simpleName == "Builder" }
         file.addFunction(
             FunSpec.builder(clazz.simpleName.decapitalize()).apply {
                 returns(clazz)
-                constructor.parameters.filter { it.type != propClass }.forEach {
-                    addParameter(it.name, it.type)
-                }
+                addParameter("scope", Construct::class)
+                addParameter("id", String::class)
                 addParameter(
                     "configureProps",
                     LambdaTypeName.get(receiver = builderClass.asTypeName(), returnType = UNIT)
