@@ -1,9 +1,8 @@
-import com.jfrog.bintray.gradle.BintrayExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinPluginWrapper
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.3.41"
+    kotlin("jvm") version "1.3.50"
     id("maven-publish")
     id("com.jfrog.bintray") version "1.8.4"
 }
@@ -13,7 +12,7 @@ val awsCdkVersion: String by project
 
 allprojects {
     group = "jp.justincase"
-    version = "$awsCdkVersion-0.1.4"
+    version = "$awsCdkVersion-0.2.0"
 
     repositories {
         mavenCentral()
@@ -35,20 +34,6 @@ subprojects {
 
     tasks.withType<KotlinCompile> {
         kotlinOptions.jvmTarget = "1.8"
-    }
-}
-
-tasks.getByPath(":generated:compileKotlin").dependsOn(tasks.getByPath(":generator:run"))
-
-publishing {
-    publications {
-        register("maven", MavenPublication::class.java) {
-            groupId = project.group as String
-            artifactId = project.name
-            version = project.version as String
-
-            from(project(":generated").components["java"])
-        }
     }
 }
 
@@ -77,20 +62,6 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
     ?: project.findProperty("bintrayUser") as String
     val bintrayKey = System.getenv("bintrayApiKey") ?: System.getenv()["bintrayApiKey"]
     ?: project.findProperty("bintrayApiKey") as String
-    bintray {
-        key = bintrayKey
-        user = bintrayUser
-        setPublications("maven")
-        publish = true
-        pkg(delegateClosureOf<BintrayExtension.PackageConfig> {
-            userOrg = "justincase"
-            repo = "Maven"
-            name = "aws-cdk-kotlin-dsl"
-            version(delegateClosureOf<BintrayExtension.VersionConfig> {
-                name = project.version as String
-            })
-        })
-    }
 
     val taskCreateBintrayPackage = tasks.register("createBintrayPackage") {
         this.group = "auto update"
@@ -122,7 +93,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         }
     }
 
-    tasks.register("generateAndUploadForAllModule") {
+    val taskGenerateForAllModule by tasks.register("generateForAllModule") {
         this.group = "auto update"
         this.dependsOn(taskCheckCdkUpdate)
         this.dependsOn(taskCreateBintrayPackage)
@@ -136,6 +107,19 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
                     kotlinVersion,
                     bintrayUser,
                     bintrayKey,
+                    File(buildDir, "cdkdsl/$it")
+                )
+            }
+        }
+    }
+
+    tasks.register("uploadToBintrayForAllModule") {
+        this.dependsOn(taskGenerateForAllModule)
+        doLast {
+            cdkModuleList.forEach {
+                uploadGeneratedFile(
+                    null,
+                    it,
                     File(buildDir, "cdkdsl/$it")
                 )
             }

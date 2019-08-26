@@ -1,10 +1,5 @@
 plugins {
-    id("application")
     id("maven-publish")
-}
-
-application {
-    mainClassName = "jp.justincase.cdkdsl.generator.MainKt"
 }
 
 publishing {
