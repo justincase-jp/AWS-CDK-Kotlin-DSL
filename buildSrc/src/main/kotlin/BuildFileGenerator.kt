@@ -51,7 +51,7 @@ fun generateBuildFile(
             )
         }
     }
-    ProcessBuilder("gradle", ":generator:run", "clean").run {
+    ProcessBuilder("gradle", ":generator:run").run {
         inheritIO()
         directory(targetDir)
         environment()["PATH"] = System.getenv("PATH")
