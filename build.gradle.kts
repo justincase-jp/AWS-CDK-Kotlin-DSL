@@ -1,4 +1,3 @@
-import com.jfrog.bintray.gradle.BintrayExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinPluginWrapper
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
@@ -38,18 +37,6 @@ subprojects {
     }
 }
 
-publishing {
-    publications {
-        register("maven", MavenPublication::class.java) {
-            groupId = project.group as String
-            artifactId = project.name
-            version = project.version as String
-
-            from(project(":generated").components["java"])
-        }
-    }
-}
-
 val taskGetCdkModules by tasks.register("getCdkModules") {
     this.group = "auto update"
     doLast {
@@ -75,20 +62,6 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
     ?: project.findProperty("bintrayUser") as String
     val bintrayKey = System.getenv("bintrayApiKey") ?: System.getenv()["bintrayApiKey"]
     ?: project.findProperty("bintrayApiKey") as String
-    bintray {
-        key = bintrayKey
-        user = bintrayUser
-        setPublications("maven")
-        publish = true
-        pkg(delegateClosureOf<BintrayExtension.PackageConfig> {
-            userOrg = "justincase"
-            repo = "Maven"
-            name = "aws-cdk-kotlin-dsl"
-            version(delegateClosureOf<BintrayExtension.VersionConfig> {
-                name = project.version as String
-            })
-        })
-    }
 
     val taskCreateBintrayPackage = tasks.register("createBintrayPackage") {
         this.group = "auto update"
