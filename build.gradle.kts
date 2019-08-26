@@ -13,7 +13,7 @@ val awsCdkVersion: String by project
 
 allprojects {
     group = "jp.justincase"
-    version = "$awsCdkVersion-0.1.4"
+    version = "$awsCdkVersion-0.2.0"
 
     repositories {
         mavenCentral()
