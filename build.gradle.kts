@@ -16,7 +16,7 @@ val awsCdkVersion: String by project
 
 allprojects {
     group = "jp.justincase"
-    version = "$awsCdkVersion-0.2.2"
+    version = "$awsCdkVersion-0.2.3"
 
     repositories {
         mavenCentral()
@@ -100,7 +100,6 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
     val taskGenerateForAllModule by tasks.register("generateForAllModule") {
         this.group = "auto update"
         this.dependsOn(taskCheckCdkUpdate)
-        this.dependsOn(taskCreateBintrayPackage)
         this.dependsOn(tasks.getByPath(":generator:publishToMavenLocal"))
         doLast {
             cdkModuleList.forEach {
@@ -118,6 +117,8 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
     }
 
     tasks.register("uploadToBintrayForAllModule") {
+        this.group = "auto update"
+        this.dependsOn(taskCreateBintrayPackage)
         this.dependsOn(taskGenerateForAllModule)
         doLast {
             cdkModuleList.forEach {
@@ -127,6 +128,22 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
                     File(buildDir, "cdkdsl/$it")
                 )
             }
+        }
+    }
+
+    tasks.register("generateLambda") {
+        this.group = "auto update"
+        this.dependsOn(tasks.getByPath(":generator:publishToMavenLocal"))
+        doLast {
+            generateBuildFile(
+                project.version as String,
+                Version(awsCdkVersion),
+                "lambda",
+                kotlinVersion,
+                bintrayUser,
+                bintrayKey,
+                File(buildDir, "cdkdsl/lambda")
+            )
         }
     }
 } else {

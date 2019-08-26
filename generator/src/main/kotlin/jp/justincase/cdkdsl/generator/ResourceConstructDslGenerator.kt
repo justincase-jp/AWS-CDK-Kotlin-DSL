@@ -2,6 +2,7 @@ package jp.justincase.cdkdsl.generator
 
 import com.squareup.kotlinpoet.*
 import software.amazon.awscdk.core.Construct
+import software.amazon.awscdk.core.IResource
 import software.amazon.awscdk.core.Resource
 import java.io.File
 import java.lang.reflect.Modifier
@@ -33,7 +34,7 @@ fun genResourceConstructResource(classes: Sequence<Class<out Any>>, targetDir: F
 private tailrec fun isResourceSubClass(clazz: Class<*>): Boolean {
     if (clazz.superclass == Objects::class.java || clazz.superclass == null) {
         return false
-    } else if (clazz.superclass == Resource::class.java) {
+    } else if (clazz.superclass == IResource::class.java) {
         return true
     }
     return isResourceSubClass(clazz.superclass)
@@ -65,5 +66,5 @@ private fun generate(clazz: Class<out Resource>) {
 private fun isPropertyArg(parameter: Parameter): Boolean =
     parameter.type != Construct::class.java
             && parameter.type != java.lang.String::class.java
-            && parameter.name == "props"
+            && !parameter.type.isPrimitive
             && parameter.type.declaredClasses.any { it.simpleName == "Builder" }
