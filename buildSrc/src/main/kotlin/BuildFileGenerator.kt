@@ -105,7 +105,7 @@ allprojects {
     }
     
     dependencies {
-        implementation(kotlin("stdlib-jdk8"))
+        implementation(kotlin("stdlib"))
         // AWS CDK
         api("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
     }
