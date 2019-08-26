@@ -120,7 +120,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         }
     }
 
-    tasks.register("generateAndUploadForAllModule") {
+    val taskGenerateForAllModule by tasks.register("generateForAllModule") {
         this.group = "auto update"
         this.dependsOn(taskCheckCdkUpdate)
         this.dependsOn(taskCreateBintrayPackage)
@@ -134,6 +134,19 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
                     kotlinVersion,
                     bintrayUser,
                     bintrayKey,
+                    File(buildDir, "cdkdsl/$it")
+                )
+            }
+        }
+    }
+
+    tasks.register("uploadToBintrayForAllModule") {
+        this.dependsOn(taskGenerateForAllModule)
+        doLast {
+            cdkModuleList.forEach {
+                uploadGeneratedFile(
+                    null,
+                    it,
                     File(buildDir, "cdkdsl/$it")
                 )
             }
