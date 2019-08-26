@@ -38,8 +38,6 @@ subprojects {
     }
 }
 
-tasks.getByPath(":generated:compileKotlin").dependsOn(tasks.getByPath(":generator:run"))
-
 publishing {
     publications {
         register("maven", MavenPublication::class.java) {
