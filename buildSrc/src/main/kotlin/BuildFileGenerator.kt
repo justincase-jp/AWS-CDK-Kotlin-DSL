@@ -37,7 +37,7 @@ fun generateBuildFile(
             writeText(
                 getGeneratorBuildGradleKtsFileText(
                     projectVersion,
-                    targetDir
+                    File(targetDir, "generated")
                 )
             )
         }
