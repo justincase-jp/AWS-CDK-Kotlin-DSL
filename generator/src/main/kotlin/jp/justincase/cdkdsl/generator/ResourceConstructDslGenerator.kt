@@ -10,16 +10,13 @@ import java.lang.reflect.Modifier
 import java.lang.reflect.Parameter
 import java.util.*
 
-val file = FileSpec.builder("jp.justincase.cdkdsl", "ResourceConstructDsl")
+private lateinit var file: FileSpec.Builder
+val propClasses: Set<Class<*>>
+    get() = propClazz.toSet()
+private val propClazz = mutableSetOf<Class<*>>()
 
 fun genResourceConstructResource(classes: Sequence<Class<out Any>>, targetDir: File, moduleName: String) {
-    file.addAnnotation(AnnotationSpec.builder(Suppress::class).addMember("%S", "FunctionName, Unused").build())
-    file.addAnnotation(
-        AnnotationSpec.builder(JvmName::class).addMember(
-            "%S",
-            "ResourceConstructDsl${moduleName.capitalize()}"
-        ).build()
-    )
+    file = getFileSpecBuilder("ResourceConstructDsl", moduleName)
     /*
     Generation target:
     ・subClass of software.amazon.awscdk.core.Resource or implement IResource
@@ -33,7 +30,7 @@ fun genResourceConstructResource(classes: Sequence<Class<out Any>>, targetDir: F
             @Suppress("UNCHECKED_CAST")
             generate(it as Class<out Resource>)
         }
-    file.build().writeTo(File(targetDir, "src/main/kotlin").also { if (!it.exists()) it.mkdirs() })
+    file.build().writeTo(targetDir)
 }
 
 private tailrec fun isResourceSubClass(clazz: Class<*>): Boolean {
@@ -57,8 +54,9 @@ private fun generate(clazz: Class<out Resource>) {
     clazz.constructors.singleOrNull(::checkConstructorIsValid)?.let { constructor ->
         val propClass = constructor.parameters.single(::isPropertyArg).type
         val builderClass = propClass.declaredClasses.single { it.simpleName == "Builder" }
+        propClazz += propClass
         file.addFunction(
-            FunSpec.builder(clazz.simpleName.decapitalize()).apply {
+            FunSpec.builder(clazz.simpleName).apply {
                 returns(clazz)
                 addParameter("scope", Construct::class)
                 addParameter("id", String::class)
