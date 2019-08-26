@@ -103,18 +103,18 @@ allprojects {
         mavenCentral()
         mavenLocal()
     }
-    
-    dependencies {
-        implementation(kotlin("stdlib"))
-        // AWS CDK
-        api("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
-    }
 }
 
 subprojects {
     apply<KotlinPluginWrapper>()
     tasks.withType<KotlinCompile> {
         kotlinOptions.jvmTarget = "1.8"
+    }
+    
+    dependencies {
+        implementation(kotlin("stdlib"))
+        // AWS CDK
+        api("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
     }
 }
 
