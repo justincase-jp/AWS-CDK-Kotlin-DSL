@@ -7,8 +7,6 @@ jobs:
     steps:
       - checkout
       - run: gradle generateForAllModule
-      - store_artifacts:
-          path: build/cdkdsl
 
   test:
     docker:
