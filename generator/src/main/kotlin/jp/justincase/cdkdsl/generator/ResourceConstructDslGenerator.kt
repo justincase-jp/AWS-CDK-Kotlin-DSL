@@ -43,25 +43,27 @@ private fun checkConstructorHasPropertyArgument(clazz: Class<*>) =
     clazz.constructors.any { constructor -> constructor.parameters.any(::isPropertyArg) }
 
 private fun generate(clazz: Class<out Resource>) {
-    val propClass =
-        clazz.constructors.single { it.parameters.any(::isPropertyArg) }.parameters.single(::isPropertyArg).type
-    // PropsクラスがBuilderサブクラスを持っていない場合はDSL化できないので弾く
-    val builderClass = propClass.declaredClasses.singleOrNull { it.simpleName == "Builder" } ?: return
-    file.addFunction(
-        FunSpec.builder(clazz.simpleName)
-            .returns(clazz)
-            .addParameter("scope", Construct::class)
-            .addParameter("id", String::class)
-            .addParameter(
-                ParameterSpec.builder(
+    clazz.constructors.filter { it.parameters.any(::isPropertyArg) }.forEach { constructor ->
+        val propClass = constructor.parameters.single(::isPropertyArg).type
+        val builderClass = propClass.declaredClasses.single { it.simpleName == "Builder" }
+        file.addFunction(
+            FunSpec.builder(clazz.simpleName.decapitalize()).apply {
+                returns(clazz)
+                constructor.parameters.filter { it.type != propClass }.forEach {
+                    addParameter(it.name, it.type)
+                }
+                addParameter(
                     "configureProps",
                     LambdaTypeName.get(receiver = builderClass.asTypeName(), returnType = UNIT)
-                ).build()
-            )
-            .addStatement("return %T(scope, id, %T.builder().also(configureProps).build())", clazz, propClass)
-            .build()
-    )
+                )
+                addStatement("return %T(scope, id, %T().also(configureProps).build())", builderClass, propClass)
+            }.build()
+        )
+    }
 }
 
 private fun isPropertyArg(parameter: Parameter): Boolean =
-    parameter.type != Construct::class.java && parameter.type != java.lang.String::class.java
+    parameter.type != Construct::class.java
+            && parameter.type != java.lang.String::class.java
+            && parameter.name == "props"
+            && parameter.type.declaredClasses.any { it.simpleName == "Builder" }
