@@ -15,7 +15,7 @@ fun generateBuildFile(
     File(targetDir, "build.gradle.kts").apply {
         createNewFile()
         writeText(
-            getBuildFileText(
+            getRootBuildGradleKtsFileText(
                 projectVersion,
                 targetCdkVersion,
                 cdkModule,
@@ -30,15 +30,53 @@ fun generateBuildFile(
         createNewFile()
         writeText(settingsGradleFileText(cdkModule))
     }
-    ProcessBuilder("gradle", "run", "clean", "bintrayUpload").run {
+    File(targetDir, "generator").apply {
+        mkdirs()
+        File(this, "build.gradle.kts").apply {
+            createNewFile()
+            writeText(
+                getGeneratorBuildGradleKtsFileText(
+                    projectVersion,
+                    targetDir
+                )
+            )
+        }
+    }
+    File(targetDir, "generated").apply {
+        mkdirs()
+        File(this, "build.gradle.kts").apply {
+            createNewFile()
+            writeText(
+                getGeneratedBuildGradleKtsFileText()
+            )
+        }
+    }
+    ProcessBuilder("gradle", ":generator:run", "clean").run {
         inheritIO()
         directory(targetDir)
         environment()["PATH"] = System.getenv("PATH")
         start()
     }.waitFor()
+    println("Code generation for $cdkModule:$targetCdkVersion have done.")
 }
 
-private fun getBuildFileText(
+fun uploadGeneratedFile(
+    cdkVersion: Version?,
+    cdkModule: String,
+    baseDir: File
+) {
+    val targetCdkVersion = (cdkVersion ?: latestCrkVersions.getValue(cdkModule)).toString()
+    val targetDir = File(baseDir, targetCdkVersion)
+    ProcessBuilder("gradle", "bintrayUpload").run {
+        inheritIO()
+        directory(targetDir)
+        environment()["PATH"] = System.getenv("PATH")
+        start()
+    }.waitFor()
+    println("Upload for $cdkModule:$targetCdkVersion have done.")
+}
+
+private fun getRootBuildGradleKtsFileText(
     projectVersion: String,
     cdkVersion: String,
     cdkModule: String,
@@ -51,31 +89,37 @@ import com.jfrog.bintray.gradle.BintrayExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinPluginWrapper
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
-group = "jp.justincase.aws-cdk-kotlin-dsl"
-version = "$cdkVersion-${projectVersion.split('-')[1]}"
-
-repositories {
-    mavenCentral()
-    mavenLocal()
-}
-
 plugins {
     kotlin("jvm") version "$kotlinVersion"
     id("maven-publish")
     id("com.jfrog.bintray") version "1.8.4"
-    id("application")
 }
 
-dependencies {
-    implementation(kotlin("stdlib-jdk8"))
-    // generator
-    runtime("jp.justincase:cdk-dsl-generator:$projectVersion")
-    // AWS CDK
-    implementation("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
+allprojects {
+    group = "jp.justincase.aws-cdk-kotlin-dsl"
+    version = "$cdkVersion-${projectVersion.split('-')[1]}"
+    
+    repositories {
+        mavenCentral()
+        mavenLocal()
+    }
+    
+    dependencies {
+        implementation(kotlin("stdlib-jdk8"))
+        // AWS CDK
+        api("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
+    }
 }
 
-application {
-    mainClassName = "jp.justincase.cdkdsl.generator.MainKt"
+subprojects {
+    apply<KotlinPluginWrapper>()
+    tasks.withType<KotlinCompile> {
+        kotlinOptions.jvmTarget = "1.8"
+    }
+}
+
+tasks.withType<KotlinCompile> {
+        kotlinOptions.jvmTarget = "1.8"
 }
 
 publishing {
@@ -84,6 +128,8 @@ publishing {
             groupId = project.group as String
             artifactId = project.name
             version = project.version as String
+            
+            from(project(":generated").components["java"])
         }
     }
 }
@@ -102,16 +148,38 @@ bintray {
         })
     }) 
 }
+"""
+
+private fun getGeneratorBuildGradleKtsFileText(
+    projectVersion: String,
+    targetDir: File
+): String = """
+
+plugins {
+    id("application")
+}
+
+application {
+    mainClassName = "jp.justincase.cdkdsl.generator.MainKt"
+}
+
+dependencies {
+    runtimeOnly("jp.justincase:cdk-dsl-generator:$projectVersion")
+}
 
 tasks.withType<JavaExec> {
     args("${targetDir.absolutePath.replace("\\", "\\\\")}")
 }
+"""
 
-tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "1.8"
+private fun getGeneratedBuildGradleKtsFileText(): String = """
+plugins {
+    id("java-library")
 }
 """
 
 private fun settingsGradleFileText(module: String) = """
 rootProject.name = "$module"
+include 'generator'
+include 'generated'
 """
