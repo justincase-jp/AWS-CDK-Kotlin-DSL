@@ -13,3 +13,7 @@ publishing {
         }
     }
 }
+
+dependencies {
+    implementation(kotlin("reflect"))
+}
