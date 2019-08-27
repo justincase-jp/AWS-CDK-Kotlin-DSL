@@ -16,7 +16,7 @@ val awsCdkVersion: String by project
 
 allprojects {
     group = "jp.justincase"
-    version = "$awsCdkVersion-0.2.3"
+    version = "$awsCdkVersion-0.3.0"
 
     repositories {
         mavenCentral()
@@ -33,7 +33,6 @@ subprojects {
         implementation("com.google.guava:guava:28.0-jre")
         // AWS CDK
         implementation("software.amazon.awscdk", "lambda", awsCdkVersion)
-        implementation("software.amazon.awscdk", "logs-destinations", awsCdkVersion)
     }
 
     tasks.withType<KotlinCompile> {
@@ -79,7 +78,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         this.group = "auto update"
         this.dependsOn(taskCheckCdkUpdate)
         this.dependsOn(taskCreateBintrayPackage)
-        this.dependsOn(tasks.getByPath(":generator:publishToMavenLocal"))
+        this.dependsOn(tasks.getByPath(":dsl-generator:publishToMavenLocal"))
         doLast {
             updatedCdkVersions.forEach { (module, list) ->
                 list.forEach {
@@ -100,7 +99,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
     val taskGenerateForAllModule by tasks.register("generateForAllModule") {
         this.group = "auto update"
         this.dependsOn(taskCheckCdkUpdate)
-        this.dependsOn(tasks.getByPath(":generator:publishToMavenLocal"))
+        this.dependsOn(tasks.getByPath(":dsl-generator:publishToMavenLocal"))
         doLast {
             cdkModuleList.forEach {
                 generateBuildFile(
@@ -133,7 +132,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
 
     tasks.register("generateLambda") {
         this.group = "auto update"
-        this.dependsOn(tasks.getByPath(":generator:publishToMavenLocal"))
+        this.dependsOn(tasks.getByPath(":dsl-generator:publishToMavenLocal"))
         doLast {
             generateBuildFile(
                 project.version as String,

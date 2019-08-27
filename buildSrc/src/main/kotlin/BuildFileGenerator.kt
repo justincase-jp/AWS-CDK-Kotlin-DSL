@@ -37,6 +37,8 @@ fun generateBuildFile(
             writeText(
                 getGeneratorBuildGradleKtsFileText(
                     projectVersion,
+                    cdkModule,
+                    targetCdkVersion,
                     File(targetDir, "generated")
                 )
             )
@@ -47,11 +49,14 @@ fun generateBuildFile(
         File(this, "build.gradle.kts").apply {
             createNewFile()
             writeText(
-                getGeneratedBuildGradleKtsFileText()
+                getGeneratedBuildGradleKtsFileText(
+                    cdkModule,
+                    targetCdkVersion
+                )
             )
         }
     }
-    ProcessBuilder("gradle", ":generator:run").run {
+    ProcessBuilder("gradle", ":generator:run", "--parallel").run {
         inheritIO()
         directory(targetDir)
         environment()["PATH"] = System.getenv("PATH")
@@ -67,7 +72,7 @@ fun uploadGeneratedFile(
 ) {
     val targetCdkVersion = (cdkVersion ?: latestCrkVersions.getValue(cdkModule)).toString()
     val targetDir = File(baseDir, targetCdkVersion)
-    ProcessBuilder("gradle", "bintrayUpload").run {
+    ProcessBuilder("gradle", "bintrayUpload", "--parallel").run {
         inheritIO()
         directory(targetDir)
         environment()["PATH"] = System.getenv("PATH")
@@ -113,8 +118,6 @@ subprojects {
     
     dependencies {
         implementation(kotlin("stdlib"))
-        // AWS CDK
-        api("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
     }
 }
 
@@ -152,6 +155,8 @@ bintray {
 
 private fun getGeneratorBuildGradleKtsFileText(
     projectVersion: String,
+    cdkModule: String,
+    cdkVersion: String,
     targetDir: File
 ): String = """
 
@@ -164,17 +169,29 @@ application {
 }
 
 dependencies {
-    runtimeOnly("jp.justincase:cdk-dsl-generator:$projectVersion")
+    runtimeOnly("jp.justincase:cdk-dsl-generator:$projectVersion") {
+        exclude(group = "software.amazon.awscdk")
+    }
+    runtimeOnly("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
+    // cdk-code is required to run generator
+    runtimeOnly("software.amazon.awscdk", "core", "$cdkVersion")
 }
 
 tasks.withType<JavaExec> {
-    args("${targetDir.absolutePath.replace("\\", "\\\\")}")
+    args("$cdkModule", "${targetDir.absolutePath.replace("\\", "\\\\")}")
 }
 """
 
-private fun getGeneratedBuildGradleKtsFileText(): String = """
+private fun getGeneratedBuildGradleKtsFileText(
+    cdkModule: String,
+    cdkVersion: String
+): String = """
 plugins {
     id("java-library")
+}
+
+dependencies {
+    api("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
 }
 """
 
