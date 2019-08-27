@@ -11,9 +11,6 @@ import java.lang.reflect.Parameter
 import java.util.*
 
 private lateinit var file: FileSpec.Builder
-val propClasses: Set<Class<*>>
-    get() = propClazz.toSet()
-private val propClazz = mutableSetOf<Class<*>>()
 
 fun genResourceConstructResource(classes: Sequence<Class<out Any>>, targetDir: File, moduleName: String) {
     file = getFileSpecBuilder("ResourceConstructDsl", moduleName)
@@ -53,8 +50,11 @@ private fun checkConstructorIsValid(constructor: Constructor<*>) =
 private fun generate(clazz: Class<out Resource>) {
     clazz.constructors.singleOrNull(::checkConstructorIsValid)?.let { constructor ->
         val propClass = constructor.parameters.single(::isPropertyArg).type
-        val builderClass = propClass.declaredClasses.single { it.simpleName == "Builder" }
-        propClazz += propClass
+        val builderClass =
+            ClassName(
+                "jp.justincase.cdkdsl.${clazz.`package`.name.split('.').drop(3).joinToString(".")}",
+                "${propClass.simpleName}BuilderScope"
+            )
         file.addFunction(
             FunSpec.builder(clazz.simpleName).apply {
                 returns(clazz)
@@ -62,9 +62,9 @@ private fun generate(clazz: Class<out Resource>) {
                 addParameter("id", String::class)
                 addParameter(
                     "configureProps",
-                    LambdaTypeName.get(receiver = builderClass.asTypeName(), returnType = UNIT)
+                    LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
                 )
-                addStatement("return %T(scope, id, %T().also(configureProps).build())", builderClass, propClass)
+                addStatement("return %T(scope, id, %T().also(configureProps).build())", clazz, builderClass)
             }.build()
         )
     }
