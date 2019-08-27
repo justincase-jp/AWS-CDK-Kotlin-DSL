@@ -14,9 +14,11 @@ fun main(targetDir: File, moduleName: String) {
     val cdkClasses = ClassPath.from(ClassLoader.getSystemClassLoader()).allClasses.asSequence()
         .filter { it.packageName.startsWith("software.amazon.awscdk") }
         .map { it.load() }
+        .filter { File(it.protectionDomain.codeSource.location.toURI()).name.split('-').first() == moduleName }
 
     val srcDir = File(targetDir, "src/main/kotlin").also { if (!it.exists()) it.mkdirs() }
     genResourceConstructResource(cdkClasses, srcDir, moduleName)
+    genPropClassExtensions(cdkClasses, srcDir, moduleName)
 }
 
 fun getFileSpecBuilder(fileName: String, moduleName: String): FileSpec.Builder =
