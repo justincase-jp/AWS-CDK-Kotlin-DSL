@@ -129,6 +129,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
 
     tasks.register("generateLambda") {
         this.group = "auto update"
+        this.dependsOn(taskCheckCdkUpdate)
         this.dependsOn(tasks.getByPath(":dsl-generator:publishToMavenLocal"))
         doLast {
             generateBuildFile(
