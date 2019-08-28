@@ -91,6 +91,11 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
                         bintrayKey,
                         File(buildDir, "cdkdsl/$module")
                     )
+                    uploadGeneratedFile(
+                        it,
+                        module,
+                        File(buildDir, "cdkdsl/$module")
+                    )
                 }
             }
         }
