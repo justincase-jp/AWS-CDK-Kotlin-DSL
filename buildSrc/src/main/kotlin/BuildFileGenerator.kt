@@ -1,5 +1,31 @@
 import io.ktor.util.KtorExperimentalAPI
+import kotlinx.coroutines.*
 import java.io.File
+
+@KtorExperimentalAPI
+fun generateBuildFiles(
+    projectVersion: String,
+    cdkVersion: Version?,
+    kotlinVersion: String,
+    bintrayUser: String,
+    bintrayApiKey: String,
+    baseDir: File
+) = runBlocking {
+    getModuleDependencies()
+    cdkModuleList.map { module ->
+        launch(Dispatchers.Default) {
+            generateBuildFileInternal(
+                projectVersion,
+                cdkVersion,
+                module,
+                kotlinVersion,
+                bintrayUser,
+                bintrayApiKey,
+                File(baseDir, module)
+            )
+        }
+    }.joinAll()
+}
 
 @KtorExperimentalAPI
 fun generateBuildFile(
@@ -10,62 +36,102 @@ fun generateBuildFile(
     bintrayUser: String,
     bintrayApiKey: String,
     baseDir: File
+) = runBlocking {
+    getModuleDependencies()
+    generateBuildFileInternal(
+        projectVersion,
+        cdkVersion,
+        cdkModule,
+        kotlinVersion,
+        bintrayUser,
+        bintrayApiKey,
+        baseDir
+    )
+}
+
+@KtorExperimentalAPI
+suspend fun generateBuildFileInternal(
+    projectVersion: String,
+    cdkVersion: Version?,
+    cdkModule: String,
+    kotlinVersion: String,
+    bintrayUser: String,
+    bintrayApiKey: String,
+    baseDir: File
 ) {
     val targetCdkVersion = (cdkVersion ?: latestDependedCdkVersions.getValue(cdkModule)).toString()
     val targetDir = File(baseDir, targetCdkVersion)
-    targetDir.mkdirs()
-    getModuleDependencies()
-    File(targetDir, "build.gradle.kts").apply {
-        createNewFile()
-        writeText(
-            getRootBuildGradleKtsFileText(
-                projectVersion,
-                targetCdkVersion,
-                cdkModule,
-                kotlinVersion,
-                bintrayUser,
-                bintrayApiKey,
-                targetDir
-            )
-        )
-    }
-    File(targetDir, "settings.gradle").apply {
-        createNewFile()
-        writeText(settingsGradleFileText(cdkModule))
-    }
-    File(targetDir, "generator").apply {
-        mkdirs()
-        File(this, "build.gradle.kts").apply {
+    withContext(Dispatchers.IO) {
+        targetDir.mkdirs()
+        File(targetDir, "build.gradle.kts").apply {
             createNewFile()
             writeText(
-                getGeneratorBuildGradleKtsFileText(
+                getRootBuildGradleKtsFileText(
                     projectVersion,
-                    cdkModule,
                     targetCdkVersion,
-                    File(targetDir, "generated")
-                )
-            )
-        }
-    }
-    File(targetDir, "generated").apply {
-        mkdirs()
-        File(this, "build.gradle.kts").apply {
-            createNewFile()
-            writeText(
-                getGeneratedBuildGradleKtsFileText(
                     cdkModule,
-                    targetCdkVersion
+                    kotlinVersion,
+                    bintrayUser,
+                    bintrayApiKey,
+                    targetDir
                 )
             )
         }
+        File(targetDir, "settings.gradle").apply {
+            createNewFile()
+            writeText(settingsGradleFileText(cdkModule))
+        }
+        File(targetDir, "generator").apply {
+            mkdirs()
+            File(this, "build.gradle.kts").apply {
+                createNewFile()
+                writeText(
+                    getGeneratorBuildGradleKtsFileText(
+                        projectVersion,
+                        cdkModule,
+                        targetCdkVersion,
+                        File(targetDir, "generated")
+                    )
+                )
+            }
+        }
+        File(targetDir, "generated").apply {
+            mkdirs()
+            File(this, "build.gradle.kts").apply {
+                createNewFile()
+                writeText(
+                    getGeneratedBuildGradleKtsFileText(
+                        cdkModule,
+                        targetCdkVersion
+                    )
+                )
+            }
+        }
     }
-    ProcessBuilder("gradle", ":generator:run", "--parallel").run {
-        inheritIO()
-        directory(targetDir)
-        environment()["PATH"] = System.getenv("PATH")
-        start()
-    }.waitFor()
+    withContext(Dispatchers.IO) {
+        ProcessBuilder("gradle", ":generator:run", "--parallel").run {
+            inheritIO()
+            directory(targetDir)
+            environment()["PATH"] = System.getenv("PATH")
+            start()
+        }.waitFor()
+    }
     println("Code generation for $cdkModule:$targetCdkVersion have done.")
+}
+
+fun uploadGeneratedFiles(
+    cdkVersion: Version?,
+    baseDir: File
+) = runBlocking {
+    cdkModuleList.map { module ->
+        launch(Dispatchers.IO) {
+            uploadGeneratedFile(
+                cdkVersion,
+                module,
+                File(baseDir, module)
+            )
+        }
+    }.joinAll()
 }
 
 fun uploadGeneratedFile(

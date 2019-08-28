@@ -103,17 +103,14 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         this.dependsOn(taskCheckCdkUpdate)
         this.dependsOn(tasks.getByPath(":dsl-generator:publishToMavenLocal"))
         doLast {
-            cdkModuleList.forEach {
-                generateBuildFile(
-                    project.version as String,
-                    null,
-                    it,
-                    kotlinVersion,
-                    bintrayUser,
-                    bintrayKey,
-                    File(buildDir, "cdkdsl/$it")
-                )
-            }
+            generateBuildFiles(
+                project.version as String,
+                null,
+                kotlinVersion,
+                bintrayUser,
+                bintrayKey,
+                File(buildDir, "cdkdsl")
+            )
         }
     }
 
@@ -122,13 +119,10 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         this.dependsOn(taskCreateBintrayPackage)
         this.dependsOn(taskGenerateForAllModule)
         doLast {
-            cdkModuleList.forEach {
-                uploadGeneratedFile(
-                    null,
-                    it,
-                    File(buildDir, "cdkdsl/$it")
-                )
-            }
+            uploadGeneratedFiles(
+                null,
+                File(buildDir, "cdkdsl")
+            )
         }
     }
 
