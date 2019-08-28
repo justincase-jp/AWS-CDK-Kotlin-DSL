@@ -14,11 +14,11 @@ import org.w3c.dom.NodeList
 import javax.xml.parsers.DocumentBuilderFactory
 
 private lateinit var cdkVersionMap: MutableMap<String, List<Version>>
-val updatedCdkVersions: Map<String, List<Version>>
+val cdkLatestVersions: Map<String, List<Version>>
     get() = cdkVersionMap.toMap()
 
 private lateinit var latestVersionMap: MutableMap<String, Version>
-val latestCrkVersions: Map<String, Version>
+val latestDependedCdkVersions: Map<String, Version>
     get() = latestVersionMap.toMap()
 
 @KtorExperimentalAPI
@@ -34,7 +34,7 @@ fun getCdkUpdatedVersions(): Map<String, List<Version>> = runBlocking {
                 client.get<HttpResponse>(dslMavenMetadataUrl)
             }
             if (response.status != HttpStatusCode.OK) {
-                return@async Version("0.0.0")
+                return@async leastVersion
             }
             val doc = withContext(Dispatchers.IO) {
                 DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(response.content.toInputStream())
