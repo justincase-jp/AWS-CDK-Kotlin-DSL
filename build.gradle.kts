@@ -51,11 +51,8 @@ val taskCheckCdkUpdate by tasks.register("checkCdkUpdate") {
     this.group = "auto update"
     this.dependsOn(taskGetCdkModules)
     doLast {
-        cdkModuleList.forEach { module ->
-            val list = getCdkUpdatedVersions(module)
-            list.forEach {
-                println(it)
-            }
+        getCdkUpdatedVersions().forEach { key, value ->
+            value.forEach { println("$key:$it") }
         }
     }
 }
