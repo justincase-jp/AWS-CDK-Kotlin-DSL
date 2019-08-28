@@ -133,6 +133,7 @@ publishing {
             version = project.version as String
             
             from(project(":generated").components["java"])
+            artifact(tasks.getByPath("generated:sourcesJar"))
         }
     }
 }
@@ -188,6 +189,11 @@ private fun getGeneratedBuildGradleKtsFileText(
 ): String = """
 plugins {
     id("java-library")
+}
+
+tasks.register<Jar>("sourcesJar") {
+    from(sourceSets.main.get().allJava)
+    archiveClassifier.set("sources")
 }
 
 dependencies {
