@@ -1,5 +1,7 @@
+import io.ktor.util.KtorExperimentalAPI
 import java.io.File
 
+@KtorExperimentalAPI
 fun generateBuildFile(
     projectVersion: String,
     cdkVersion: Version?,
@@ -9,9 +11,10 @@ fun generateBuildFile(
     bintrayApiKey: String,
     baseDir: File
 ) {
-    val targetCdkVersion = (cdkVersion ?: latestCrkVersions.getValue(cdkModule)).toString()
+    val targetCdkVersion = (cdkVersion ?: latestDependedCdkVersions.getValue(cdkModule)).toString()
     val targetDir = File(baseDir, targetCdkVersion)
     targetDir.mkdirs()
+    getModuleDependencies()
     File(targetDir, "build.gradle.kts").apply {
         createNewFile()
         writeText(
@@ -70,7 +73,7 @@ fun uploadGeneratedFile(
     cdkModule: String,
     baseDir: File
 ) {
-    val targetCdkVersion = (cdkVersion ?: latestCrkVersions.getValue(cdkModule)).toString()
+    val targetCdkVersion = (cdkVersion ?: latestDependedCdkVersions.getValue(cdkModule)).toString()
     val targetDir = File(baseDir, targetCdkVersion)
     ProcessBuilder("gradle", "bintrayUpload", "--parallel").run {
         inheritIO()
@@ -90,6 +93,7 @@ private fun getRootBuildGradleKtsFileText(
     bintrayApiKey: String,
     targetDir: File
 ): String = """
+import org.w3c.dom.Node
 import com.jfrog.bintray.gradle.BintrayExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinPluginWrapper
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -134,6 +138,27 @@ publishing {
             
             from(project(":generated").components["java"])
             artifact(tasks.getByPath("generated:sourcesJar"))
+            
+            pom.withXml {
+                val doc = this.asElement().ownerDocument
+                fun Node.addDependency(groupId: String, artifactId: String, version: String) {
+                    appendChild(doc.createElement("dependency")).apply {
+                        appendChild(doc.createElement("groupId").apply { textContent = groupId })
+                        appendChild(doc.createElement("artifactId").apply { textContent = artifactId })
+                        appendChild(doc.createElement("version").apply { textContent = version })
+                        appendChild(doc.createElement("scope").apply { textContent = "compile" })
+                    }
+                }
+                val parent = asElement().getElementsByTagName("dependencies").item(0)
+    
+                ${moduleDependencyMap.getValue(cdkModule)
+    .map {
+        """parent.addDependency("jp.justincase.aws-cdk-kotlin-dsl", "$cdkModule", "$cdkVersion-${projectVersion.split(
+            '-'
+        )[1]}")"""
+    }
+    .joinToString("\n    ")}
+            }
         }
     }
 }
