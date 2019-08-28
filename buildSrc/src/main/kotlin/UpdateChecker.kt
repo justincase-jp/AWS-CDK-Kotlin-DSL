@@ -23,13 +23,12 @@ private val client = HttpClient(CIO)
 
 @KtorExperimentalAPI
 fun getCdkUpdatedVersions(module: String): List<Version> {
-    fun getDslMavenMetadataUrl() =
+    val dslMavenMetadataUrl =
         "https://dl.bintray.com/justincase/aws-cdk-kotlin-dsl/jp/justincase/aws-cdk-kotlin-dsl/$module/maven-metadata.xml"
-
-    fun getCdkMavenMetadataUrl() = "https://repo1.maven.org/maven2/software/amazon/awscdk/$module/maven-metadata.xml"
+    val cdkMavenMetadataUrl = "https://repo1.maven.org/maven2/software/amazon/awscdk/$module/maven-metadata.xml"
 
     fun getLatestGeneratedCdkVersion(): Version {
-        val response = runBlocking { client.get<HttpResponse>(getDslMavenMetadataUrl()) }
+        val response = runBlocking { client.get<HttpResponse>(dslMavenMetadataUrl) }
         if (response.status != HttpStatusCode.OK) {
             return Version("0.0.0")
         }
@@ -40,7 +39,7 @@ fun getCdkUpdatedVersions(module: String): List<Version> {
     }
 
     fun getCdkVersionList(): List<Version> {
-        val xmlString = runBlocking { client.get<String>(getCdkMavenMetadataUrl()) }
+        val xmlString = runBlocking { client.get<String>(cdkMavenMetadataUrl) }
         val doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(xmlString.byteInputStream())
         return doc.getElementsByTagName("versions").item(0).childNodes.asList().filter { it.nodeName == "version" }
             .map { Version(it.textContent) }
