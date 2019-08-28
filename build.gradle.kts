@@ -77,7 +77,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         this.dependsOn(taskCreateBintrayPackage)
         this.dependsOn(tasks.getByPath(":dsl-generator:publishToMavenLocal"))
         doLast {
-            updatedCdkVersions.forEach { (module, list) ->
+            cdkLatestVersions.forEach { (module, list) ->
                 list.forEach {
                     generateBuildFile(
                         project.version as String,
