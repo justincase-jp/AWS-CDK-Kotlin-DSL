@@ -115,6 +115,7 @@ suspend fun generateBuildFileInternal(
         val exitCode = ProcessBuilder("gradle", "--parallel", "-S", ":generator:run", "build").run {
             directory(targetDir)
             environment()["PATH"] = System.getenv("PATH")
+            redirectErrorStream(true)
             start().apply {
                 val reader = inputStream.bufferedReader(Charsets.UTF_8)
                 val builder = StringBuilder()
