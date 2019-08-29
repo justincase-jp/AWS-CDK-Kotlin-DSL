@@ -98,7 +98,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         }
     }
 
-    val taskGenerateForAllModule by tasks.register("generateForAllModule") {
+    val taskGenerateForAllModuleParallel by tasks.register("generateForAllModuleParallel") {
         this.group = "auto update"
         this.dependsOn(taskCheckCdkUpdate)
         this.dependsOn(tasks.getByPath(":dsl-generator:publishToMavenLocal"))
@@ -114,15 +114,49 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         }
     }
 
-    tasks.register("uploadToBintrayForAllModule") {
+    val taskGenerateForAllModule by tasks.register("generateForAllModule") {
+        this.group = "auto update"
+        this.dependsOn(taskCheckCdkUpdate)
+        this.dependsOn(tasks.getByPath(":dsl-generator:publishToMavenLocal"))
+        doLast {
+            cdkModuleList.forEach {
+                generateBuildFile(
+                    project.version as String,
+                    null,
+                    it,
+                    kotlinVersion,
+                    bintrayUser,
+                    bintrayKey,
+                    File(buildDir, "cdkdsl")
+                )
+            }
+        }
+    }
+
+    tasks.register("uploadToBintrayForAllModuleParallel") {
         this.group = "auto update"
         this.dependsOn(taskCreateBintrayPackage)
-        this.dependsOn(taskGenerateForAllModule)
+        this.dependsOn(taskGenerateForAllModuleParallel)
         doLast {
             uploadGeneratedFiles(
                 null,
                 File(buildDir, "cdkdsl")
             )
+        }
+    }
+
+    tasks.register("uploadToBintrayForAllModule") {
+        this.group = "auto update"
+        this.dependsOn(taskCreateBintrayPackage)
+        this.dependsOn(taskGenerateForAllModule)
+        doLast {
+            cdkModuleList.forEach {
+                uploadGeneratedFile(
+                    null,
+                    it,
+                    File(buildDir, "cdkdsl")
+                )
+            }
         }
     }
 
