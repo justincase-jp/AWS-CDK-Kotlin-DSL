@@ -16,63 +16,83 @@ private val ignoreFunctionNames = setOf("build", "toString", "hashCode", "equals
 fun genPropClassExtensions(classes: Sequence<Class<out Any>>, targetDir: File, moduleName: String) {
     file = getFileSpecBuilder("PropClassExtensions", moduleName)
 
-    classes.filter { it.simpleName == "Builder" }
+    val classGroup = classes.filter { it.simpleName == "Builder" }
         .map { it.kotlin }
-        .mapNotNull { clazz ->
-            val classFile = getClassFile(clazz)
-            val wrapper = TypeSpec.classBuilder("${clazz.java.declaringClass.simpleName}BuilderScope")
-            val methods = clazz.memberFunctions
-                .filter { !ignoreFunctionNames.contains(it.name) && it.arguments.size == 1 && !it.isExternal }
-            val duplicates = methods.groupBy { it.name }.filterValues { it.count() >= 2 }.toMutableMap()
-            val handledDuplicates = mutableSetOf<String>()
-            if (methods.map { it.name }.toSet().size != methods.size) {
-                if (!methods.any { it.arguments.map { param -> param.type }.single() == IResolvable::class }) {
-                    return@mapNotNull null
-                }
+        .groupBy { it.java.declaringClass.declaringClass == null }
+    val parentMap = mutableMapOf<Class<*>, TypeSpec.Builder>()
+    buildClasses(classGroup[true] ?: emptyList()).forEach { (clazz, spec) ->
+        getClassFile(clazz).addType(spec)
+    }
+    buildClasses(classGroup[false] ?: emptyList()).forEach { (clazz, spec) ->
+        val parentClass = clazz.java.declaringClass.declaringClass
+        val parent = if (parentMap.containsKey(parentClass)) {
+            parentMap.getValue(parentClass)
+        } else {
+            TypeSpec.classBuilder(parentClass.simpleName).apply {
+                parentMap[parentClass] = this
             }
-            methods.forEach {
-                val name = it.name
-                val dup = duplicates[name]
-                if (dup != null) {
-                    if (!handledDuplicates.contains(name)) {
-                        wrapper.addPropertyForDuplicatedMethods(name, dup)
-                        handledDuplicates += name
-                    }
-                } else {
-                    wrapper.addProperty(it)
-                }
-            }
-            handledDuplicates.clear()
-            wrapper.addFunction(FunSpec.builder("build")
-                .returns(clazz.java.declaringClass.kotlin)
-                .addStatement("val builder = %T()", clazz)
-                .apply {
-                    methods.forEach { method ->
-                        val name = method.name
-                        val fieldName = name.decapitalize()
-                        if (duplicates[name] != null) {
-                            addStatement("if( _$fieldName != null && ${fieldName}TypeFlag != null) {")
-                            addStatement(
-                                "if( ${fieldName}TypeFlag ) { builder.$name( _$fieldName as IResolvable) }"
-                            )
-                            addStatement(
-                                "else { builder.$name( _$name as %T }",
-                                duplicates[name]!!.single { it.arguments.single().type != IResolvable::class }.arguments.single().type
-                            )
-                            addStatement("}")
-                        } else {
-                            addStatement("${fieldName}?.let{ builder.$name(it) }")
-                        }
-                    }
-                }
-                .addStatement("return builder.build()")
-                .build())
-            classFile.addType(wrapper.build())
-        }.forEach { builder ->
-            builder.build().writeTo(targetDir)
         }
+        parent.addType(spec)
+    }
+    parentMap.forEach { (clazz, builder) ->
+        getClassFile(clazz.kotlin).addType(builder.build())
+    }
+    classFiles.forEach { (_, builder) ->
+        builder.build().writeTo(targetDir)
+    }
     file.build().writeTo(targetDir)
 }
+
+private fun buildClasses(list: List<KClass<*>>) = list.associateWith { clazz ->
+    val wrapper = TypeSpec.classBuilder("${clazz.java.declaringClass.simpleName}BuilderScope")
+    val methods = clazz.memberFunctions
+        .filter { !ignoreFunctionNames.contains(it.name) && it.arguments.size == 1 && !it.isExternal }
+    val duplicates = methods.groupBy { it.name }.filterValues { it.count() >= 2 }.toMutableMap()
+    val handledDuplicates = mutableSetOf<String>()
+    if (methods.map { it.name }.toSet().size != methods.size) {
+        if (!methods.any { it.arguments.map { param -> param.type }.single() == IResolvable::class }) {
+            return@associateWith null
+        }
+    }
+    methods.forEach {
+        val name = it.name
+        val dup = duplicates[name]
+        if (dup != null) {
+            if (!handledDuplicates.contains(name)) {
+                wrapper.addPropertyForDuplicatedMethods(name, dup)
+                handledDuplicates += name
+            }
+        } else {
+            wrapper.addProperty(it)
+        }
+    }
+    handledDuplicates.clear()
+    wrapper.addFunction(FunSpec.builder("build")
+        .returns(clazz.java.declaringClass.kotlin)
+        .addStatement("val builder = %T()", clazz)
+        .apply {
+            methods.forEach { method ->
+                val name = method.name
+                val fieldName = name.decapitalize()
+                if (duplicates[name] != null) {
+                    addStatement("if( _$fieldName != null && ${fieldName}TypeFlag != null) {")
+                    addStatement(
+                        "if( ${fieldName}TypeFlag ) { builder.$name( _$fieldName as IResolvable) }"
+                    )
+                    addStatement(
+                        "else { builder.$name( _$name as %T }",
+                        duplicates[name]!!.single { it.arguments.single().type != IResolvable::class }.arguments.single().type
+                    )
+                    addStatement("}")
+                } else {
+                    addStatement("${fieldName}?.let{ builder.$name(it) }")
+                }
+            }
+        }
+        .addStatement("return builder.build()")
+        .build())
+    wrapper.build()
+}.mapNotNull { if (it.value == null) null else it.key to it.value!! }.toMap()
 
 private fun TypeSpec.Builder.addProperty(method: KFunction<*>) {
     val parameterType = method.arguments.single().type.asTypeName().copy(nullable = true)

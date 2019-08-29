@@ -2,6 +2,7 @@ import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.*
 import java.io.File
 
+
 @KtorExperimentalAPI
 fun generateBuildFiles(
     projectVersion: String,
@@ -109,12 +110,24 @@ suspend fun generateBuildFileInternal(
         }
     }
     withContext(Dispatchers.IO) {
-        ProcessBuilder("gradle", "--parallel", ":generator:run", "build").run {
-            inheritIO()
+        println("Code generation for $cdkModule:$targetCdkVersion will be start")
+        println("==========".repeat(5))
+        val exitCode = ProcessBuilder("gradle", "--parallel", "-S", ":generator:run", "build").run {
             directory(targetDir)
             environment()["PATH"] = System.getenv("PATH")
-            start()
+            redirectErrorStream(true)
+            start().apply {
+                val reader = inputStream.bufferedReader(Charsets.UTF_8)
+                val builder = StringBuilder()
+                var c: Int
+                while (reader.read().apply { c = this } != -1) {
+                    builder.append(c.toChar())
+                }
+                println(builder.toString())
+            }
         }.waitFor()
+        println("==========".repeat(5))
+        if (exitCode != 0) throw RuntimeException("Process exited with non-zero code: $exitCode. target module is $cdkModule:$cdkVersion")
     }
     println("Code generation for $cdkModule:$targetCdkVersion have done.")
 }
@@ -141,12 +154,13 @@ fun uploadGeneratedFile(
 ) {
     val targetCdkVersion = (cdkVersion ?: latestDependedCdkVersions.getValue(cdkModule)).toString()
     val targetDir = File(baseDir, targetCdkVersion)
-    ProcessBuilder("gradle", "bintrayUpload", "--parallel").run {
+    val exitCode = ProcessBuilder("gradle", "--parallel", "-S", "bintrayUpload").run {
         inheritIO()
         directory(targetDir)
         environment()["PATH"] = System.getenv("PATH")
         start()
     }.waitFor()
+    if (exitCode != 0) throw RuntimeException("Process exited with non-zero code: $exitCode. target module is $cdkModule:$cdkVersion")
     println("Upload for $cdkModule:$targetCdkVersion have done.")
 }
 
