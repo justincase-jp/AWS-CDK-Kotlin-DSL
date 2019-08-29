@@ -109,7 +109,7 @@ suspend fun generateBuildFileInternal(
         }
     }
     withContext(Dispatchers.IO) {
-        ProcessBuilder("gradle", ":generator:run", "--parallel").run {
+        ProcessBuilder("gradle", "--parallel", ":generator:run", "build").run {
             inheritIO()
             directory(targetDir)
             environment()["PATH"] = System.getenv("PATH")
