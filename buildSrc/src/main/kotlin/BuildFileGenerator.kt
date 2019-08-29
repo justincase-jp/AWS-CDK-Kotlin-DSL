@@ -203,7 +203,7 @@ publishing {
             version = project.version as String
             
             from(project(":generated").components["java"])
-            artifact(tasks.getByPath("generated:sourcesJar"))
+            artifact(tasks.getByPath(":generated:sourcesJar"))
             
             pom.withXml {
                 val doc = this.asElement().ownerDocument
@@ -283,7 +283,7 @@ plugins {
 }
 
 tasks.register<Jar>("sourcesJar") {
-    from(sourceSets.main.get().allJava)
+    from(sourceSets.main.get().allSource)
     archiveClassifier.set("sources")
 }
 
