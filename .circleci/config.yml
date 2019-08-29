@@ -6,28 +6,28 @@ jobs:
       - image: gradle:5.6.0-jdk8
     steps:
       - checkout
-      - run: gradle generateForAllModule
+      - run: gradle -S generateForAllModule
 
   test:
     docker:
       - image: gradle:5.6.0-jdk8
     steps:
       - checkout
-      - run: gradle test
+      - run: gradle -S test
 
   deployForCdk:
     docker:
       - image: gradle:5.6.0-jdk8
     steps:
       - checkout
-      - run: gradle generateAndUploadForUpdatedCdk
+      - run: gradle -S generateAndUploadForUpdatedCdk
 
   deployForUpdate:
     docker:
       - image: gradle:5.6.0-jdk8
     steps:
       - checkout
-      - run: gradle uploadToBintrayForAllModule
+      - run: gradle -S uploadToBintrayForAllModule
 
 workflows:
   version: 2

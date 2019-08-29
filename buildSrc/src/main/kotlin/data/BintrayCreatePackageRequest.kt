@@ -1,3 +1,5 @@
+package data
+
 import com.fasterxml.jackson.annotation.JsonProperty
 
 data class BintrayCreatePackageRequestJson(

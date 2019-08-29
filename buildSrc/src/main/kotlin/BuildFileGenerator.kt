@@ -1,5 +1,33 @@
+import io.ktor.util.KtorExperimentalAPI
+import kotlinx.coroutines.*
 import java.io.File
 
+@KtorExperimentalAPI
+fun generateBuildFiles(
+    projectVersion: String,
+    cdkVersion: Version?,
+    kotlinVersion: String,
+    bintrayUser: String,
+    bintrayApiKey: String,
+    baseDir: File
+) = runBlocking {
+    getModuleDependencies()
+    cdkModuleList.map { module ->
+        launch(Dispatchers.Default) {
+            generateBuildFileInternal(
+                projectVersion,
+                cdkVersion,
+                module,
+                kotlinVersion,
+                bintrayUser,
+                bintrayApiKey,
+                File(baseDir, module)
+            )
+        }
+    }.joinAll()
+}
+
+@KtorExperimentalAPI
 fun generateBuildFile(
     projectVersion: String,
     cdkVersion: Version?,
@@ -8,61 +36,102 @@ fun generateBuildFile(
     bintrayUser: String,
     bintrayApiKey: String,
     baseDir: File
+) = runBlocking {
+    getModuleDependencies()
+    generateBuildFileInternal(
+        projectVersion,
+        cdkVersion,
+        cdkModule,
+        kotlinVersion,
+        bintrayUser,
+        bintrayApiKey,
+        baseDir
+    )
+}
+
+@KtorExperimentalAPI
+suspend fun generateBuildFileInternal(
+    projectVersion: String,
+    cdkVersion: Version?,
+    cdkModule: String,
+    kotlinVersion: String,
+    bintrayUser: String,
+    bintrayApiKey: String,
+    baseDir: File
 ) {
-    val targetCdkVersion = (cdkVersion ?: latestCrkVersions.getValue(cdkModule)).toString()
+    val targetCdkVersion = (cdkVersion ?: latestDependedCdkVersions.getValue(cdkModule)).toString()
     val targetDir = File(baseDir, targetCdkVersion)
-    targetDir.mkdirs()
-    File(targetDir, "build.gradle.kts").apply {
-        createNewFile()
-        writeText(
-            getRootBuildGradleKtsFileText(
-                projectVersion,
-                targetCdkVersion,
-                cdkModule,
-                kotlinVersion,
-                bintrayUser,
-                bintrayApiKey,
-                targetDir
-            )
-        )
-    }
-    File(targetDir, "settings.gradle").apply {
-        createNewFile()
-        writeText(settingsGradleFileText(cdkModule))
-    }
-    File(targetDir, "generator").apply {
-        mkdirs()
-        File(this, "build.gradle.kts").apply {
+    withContext(Dispatchers.IO) {
+        targetDir.mkdirs()
+        File(targetDir, "build.gradle.kts").apply {
             createNewFile()
             writeText(
-                getGeneratorBuildGradleKtsFileText(
+                getRootBuildGradleKtsFileText(
                     projectVersion,
-                    cdkModule,
                     targetCdkVersion,
-                    File(targetDir, "generated")
-                )
-            )
-        }
-    }
-    File(targetDir, "generated").apply {
-        mkdirs()
-        File(this, "build.gradle.kts").apply {
-            createNewFile()
-            writeText(
-                getGeneratedBuildGradleKtsFileText(
                     cdkModule,
-                    targetCdkVersion
+                    kotlinVersion,
+                    bintrayUser,
+                    bintrayApiKey,
+                    targetDir
                 )
             )
         }
+        File(targetDir, "settings.gradle").apply {
+            createNewFile()
+            writeText(settingsGradleFileText(cdkModule))
+        }
+        File(targetDir, "generator").apply {
+            mkdirs()
+            File(this, "build.gradle.kts").apply {
+                createNewFile()
+                writeText(
+                    getGeneratorBuildGradleKtsFileText(
+                        projectVersion,
+                        cdkModule,
+                        targetCdkVersion,
+                        File(targetDir, "generated")
+                    )
+                )
+            }
+        }
+        File(targetDir, "generated").apply {
+            mkdirs()
+            File(this, "build.gradle.kts").apply {
+                createNewFile()
+                writeText(
+                    getGeneratedBuildGradleKtsFileText(
+                        cdkModule,
+                        targetCdkVersion
+                    )
+                )
+            }
+        }
     }
-    ProcessBuilder("gradle", ":generator:run", "--parallel").run {
-        inheritIO()
-        directory(targetDir)
-        environment()["PATH"] = System.getenv("PATH")
-        start()
-    }.waitFor()
+    withContext(Dispatchers.IO) {
+        ProcessBuilder("gradle", ":generator:run", "--parallel").run {
+            inheritIO()
+            directory(targetDir)
+            environment()["PATH"] = System.getenv("PATH")
+            start()
+        }.waitFor()
+    }
     println("Code generation for $cdkModule:$targetCdkVersion have done.")
+}
+
+fun uploadGeneratedFiles(
+    cdkVersion: Version?,
+    baseDir: File
+) = runBlocking {
+    cdkModuleList.map { module ->
+        launch(Dispatchers.IO) {
+            uploadGeneratedFile(
+                cdkVersion,
+                module,
+                File(baseDir, module)
+            )
+        }
+    }.joinAll()
 }
 
 fun uploadGeneratedFile(
@@ -70,7 +139,7 @@ fun uploadGeneratedFile(
     cdkModule: String,
     baseDir: File
 ) {
-    val targetCdkVersion = (cdkVersion ?: latestCrkVersions.getValue(cdkModule)).toString()
+    val targetCdkVersion = (cdkVersion ?: latestDependedCdkVersions.getValue(cdkModule)).toString()
     val targetDir = File(baseDir, targetCdkVersion)
     ProcessBuilder("gradle", "bintrayUpload", "--parallel").run {
         inheritIO()
@@ -90,6 +159,7 @@ private fun getRootBuildGradleKtsFileText(
     bintrayApiKey: String,
     targetDir: File
 ): String = """
+import org.w3c.dom.Node
 import com.jfrog.bintray.gradle.BintrayExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinPluginWrapper
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -133,6 +203,28 @@ publishing {
             version = project.version as String
             
             from(project(":generated").components["java"])
+            artifact(tasks.getByPath("generated:sourcesJar"))
+            
+            pom.withXml {
+                val doc = this.asElement().ownerDocument
+                fun Node.addDependency(groupId: String, artifactId: String, version: String) {
+                    appendChild(doc.createElement("dependency")).apply {
+                        appendChild(doc.createElement("groupId").apply { textContent = groupId })
+                        appendChild(doc.createElement("artifactId").apply { textContent = artifactId })
+                        appendChild(doc.createElement("version").apply { textContent = version })
+                        appendChild(doc.createElement("scope").apply { textContent = "compile" })
+                    }
+                }
+                val parent = asElement().getElementsByTagName("dependencies").item(0)
+    
+                ${moduleDependencyMap.getValue(cdkModule)
+    .map {
+        """parent.addDependency("jp.justincase.aws-cdk-kotlin-dsl", "$cdkModule", "$cdkVersion-${projectVersion.split(
+            '-'
+        )[1]}")"""
+    }
+    .joinToString("\n    ")}
+            }
         }
     }
 }
@@ -188,6 +280,11 @@ private fun getGeneratedBuildGradleKtsFileText(
 ): String = """
 plugins {
     id("java-library")
+}
+
+tasks.register<Jar>("sourcesJar") {
+    from(sourceSets.main.get().allJava)
+    archiveClassifier.set("sources")
 }
 
 dependencies {

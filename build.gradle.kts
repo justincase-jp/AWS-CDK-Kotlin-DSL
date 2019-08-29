@@ -16,7 +16,7 @@ val awsCdkVersion: String by project
 
 allprojects {
     group = "jp.justincase"
-    version = "$awsCdkVersion-0.3.0"
+    version = "$awsCdkVersion-0.3.1"
 
     repositories {
         mavenCentral()
@@ -51,11 +51,8 @@ val taskCheckCdkUpdate by tasks.register("checkCdkUpdate") {
     this.group = "auto update"
     this.dependsOn(taskGetCdkModules)
     doLast {
-        cdkModuleList.forEach { module ->
-            val list = getCdkUpdatedVersions(module)
-            list.forEach {
-                println(it)
-            }
+        getCdkUpdatedVersions().forEach { key, value ->
+            value.forEach { println("$key:$it") }
         }
     }
 }
@@ -80,7 +77,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         this.dependsOn(taskCreateBintrayPackage)
         this.dependsOn(tasks.getByPath(":dsl-generator:publishToMavenLocal"))
         doLast {
-            updatedCdkVersions.forEach { (module, list) ->
+            cdkLatestVersions.forEach { (module, list) ->
                 list.forEach {
                     generateBuildFile(
                         project.version as String,
@@ -91,8 +88,29 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
                         bintrayKey,
                         File(buildDir, "cdkdsl/$module")
                     )
+                    uploadGeneratedFile(
+                        it,
+                        module,
+                        File(buildDir, "cdkdsl/$module")
+                    )
                 }
             }
+        }
+    }
+
+    val taskGenerateForAllModuleParallel by tasks.register("generateForAllModuleParallel") {
+        this.group = "auto update"
+        this.dependsOn(taskCheckCdkUpdate)
+        this.dependsOn(tasks.getByPath(":dsl-generator:publishToMavenLocal"))
+        doLast {
+            generateBuildFiles(
+                project.version as String,
+                null,
+                kotlinVersion,
+                bintrayUser,
+                bintrayKey,
+                File(buildDir, "cdkdsl")
+            )
         }
     }
 
@@ -109,9 +127,21 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
                     kotlinVersion,
                     bintrayUser,
                     bintrayKey,
-                    File(buildDir, "cdkdsl/$it")
+                    File(buildDir, "cdkdsl")
                 )
             }
+        }
+    }
+
+    tasks.register("uploadToBintrayForAllModuleParallel") {
+        this.group = "auto update"
+        this.dependsOn(taskCreateBintrayPackage)
+        this.dependsOn(taskGenerateForAllModuleParallel)
+        doLast {
+            uploadGeneratedFiles(
+                null,
+                File(buildDir, "cdkdsl")
+            )
         }
     }
 
@@ -124,7 +154,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
                 uploadGeneratedFile(
                     null,
                     it,
-                    File(buildDir, "cdkdsl/$it")
+                    File(buildDir, "cdkdsl")
                 )
             }
         }
@@ -132,6 +162,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
 
     tasks.register("generateLambda") {
         this.group = "auto update"
+        this.dependsOn(taskCheckCdkUpdate)
         this.dependsOn(tasks.getByPath(":dsl-generator:publishToMavenLocal"))
         doLast {
             generateBuildFile(

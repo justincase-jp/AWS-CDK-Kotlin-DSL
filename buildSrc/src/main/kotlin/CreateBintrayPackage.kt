@@ -1,5 +1,7 @@
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import data.BintrayCreatePackageRequestJson
+import data.ResponseJson
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.features.auth.Auth
@@ -21,12 +23,21 @@ private val apiBaseUrl = "https://api.bintray.com/packages/justincase/aws-cdk-ko
 lateinit var cdkModuleList: List<String>
     private set
 
+val leastVersion = Version("1.0.0")
+
 @KtorExperimentalAPI
 fun getCdkModules(): List<String> {
     val client = HttpClient(CIO)
     val response = runBlocking { client.get<String>(requestUrl) }
     val obj = jacksonObjectMapper().readValue<ResponseJson>(response)
-    cdkModuleList = obj.response.docs.filter { it.ec.containsAll(listOf(".jar", ".pom")) }.map { it.a }
+    cdkModuleList = obj.response.docs.filter {
+        it.ec.containsAll(
+            listOf(
+                ".jar",
+                ".pom"
+            )
+        ) && Version(it.latestVersion) >= leastVersion
+    }.map { it.a }
     return cdkModuleList
 }
 
