@@ -20,10 +20,10 @@ fun genPropClassExtensions(classes: Sequence<Class<out Any>>, targetDir: File, m
         .map { it.kotlin }
         .groupBy { it.java.declaringClass.declaringClass == null }
     val parentMap = mutableMapOf<Class<*>, TypeSpec.Builder>()
-    buildClasses(classGroup.getValue(true)).forEach { (clazz, spec) ->
+    buildClasses(classGroup[true] ?: emptyList()).forEach { (clazz, spec) ->
         getClassFile(clazz).addType(spec)
     }
-    buildClasses(classGroup.getValue(false)).forEach { (clazz, spec) ->
+    buildClasses(classGroup[false] ?: emptyList()).forEach { (clazz, spec) ->
         val parentClass = clazz.java.declaringClass.declaringClass
         val parent = if (parentMap.containsKey(parentClass)) {
             parentMap.getValue(parentClass)
