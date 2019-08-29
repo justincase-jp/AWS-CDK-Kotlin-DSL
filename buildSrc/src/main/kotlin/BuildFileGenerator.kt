@@ -217,11 +217,10 @@ publishing {
                 }
                 val parent = asElement().getElementsByTagName("dependencies").item(0)
     
-                ${moduleDependencyMap.getValue(cdkModule)
-    .map {
-        """parent.addDependency("jp.justincase.aws-cdk-kotlin-dsl", "$it", "$cdkVersion-${projectVersion
-            .split('-')[1]}")"""
-    }.joinToString("\n                ")}
+                ${moduleDependencyMap.getValue(cdkModule).joinToString("\n                ") {
+    """parent.addDependency("jp.justincase.aws-cdk-kotlin-dsl", "$it", "$cdkVersion-${projectVersion
+        .split('-')[1]}")"""
+}}
             }
         }
     }
