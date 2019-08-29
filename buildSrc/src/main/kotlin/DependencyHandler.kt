@@ -19,9 +19,9 @@ lateinit var moduleDependencyMap: Map<String, List<String>>
 @KtorExperimentalAPI
 suspend fun getModuleDependencies(): Map<String, List<String>> {
     return if (::moduleDependencyMap.isInitialized) moduleDependencyMap else withContext(Dispatchers.Default) {
-        cdkLatestVersions.filterValues { it.isNotEmpty() }.keys.associateWith { module ->
+        cdkLatestVersions.keys.associateWith { module ->
             async {
-                val version = cdkLatestVersions.getValue(module).last().toString()
+                val version = cdkLatestVersions.getValue(module).toString()
                 val targetUrl =
                     "http://central.maven.org/maven2/software/amazon/awscdk/$module/${version}/$module-${
                     version}.pom"

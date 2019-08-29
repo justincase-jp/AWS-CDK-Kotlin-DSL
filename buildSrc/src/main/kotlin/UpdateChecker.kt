@@ -13,9 +13,13 @@ import org.w3c.dom.Node
 import org.w3c.dom.NodeList
 import javax.xml.parsers.DocumentBuilderFactory
 
-private lateinit var cdkVersionMap: MutableMap<String, List<Version>>
-val cdkLatestVersions: Map<String, List<Version>>
-    get() = cdkVersionMap.toMap()
+private lateinit var unhandledCdkVersionMap: Map<String, List<Version>>
+val cdkLatestUnhandledVersions: Map<String, List<Version>>
+    get() = unhandledCdkVersionMap.toMap()
+
+private lateinit var latestCdkVersionMap: Map<String, Version>
+val cdkLatestVersions: Map<String, Version>
+    get() = latestCdkVersionMap.toMap()
 
 private lateinit var latestVersionMap: MutableMap<String, Version>
 val latestDependedCdkVersions: Map<String, Version>
@@ -56,9 +60,11 @@ fun getCdkUpdatedVersions(): Map<String, List<Version>> = runBlocking {
             doc.getElementsByTagName("versions").item(0).childNodes.asList().filter { it.nodeName == "version" }
                 .map { Version(it.textContent) }
         }
-    }.mapValues { pair -> pair.value.await().filter { it > latestGeneratedCdkVersions.getValue(pair.key) } }
-    cdkVersionMap = cdkVersions.toMutableMap()
-    cdkVersions
+    }.mapValues { pair -> pair.value.await() }
+    latestCdkVersionMap = cdkVersions.mapValues { pair -> pair.value.last() }
+    unhandledCdkVersionMap =
+        cdkVersions.mapValues { pair -> pair.value.filter { it > latestGeneratedCdkVersions.getValue(pair.key) } }
+    unhandledCdkVersionMap
 }
 
 fun NodeList.asList(): List<Node> {

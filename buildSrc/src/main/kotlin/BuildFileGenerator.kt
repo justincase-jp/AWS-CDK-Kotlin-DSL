@@ -203,7 +203,7 @@ publishing {
             version = project.version as String
             
             from(project(":generated").components["java"])
-            artifact(tasks.getByPath("generated:sourcesJar"))
+            artifact(tasks.getByPath(":generated:sourcesJar"))
             
             pom.withXml {
                 val doc = this.asElement().ownerDocument
@@ -217,13 +217,10 @@ publishing {
                 }
                 val parent = asElement().getElementsByTagName("dependencies").item(0)
     
-                ${moduleDependencyMap.getValue(cdkModule)
-    .map {
-        """parent.addDependency("jp.justincase.aws-cdk-kotlin-dsl", "$cdkModule", "$cdkVersion-${projectVersion.split(
-            '-'
-        )[1]}")"""
-    }
-    .joinToString("\n    ")}
+                ${moduleDependencyMap.getValue(cdkModule).joinToString("\n                ") {
+    """parent.addDependency("jp.justincase.aws-cdk-kotlin-dsl", "$it", "$cdkVersion-${projectVersion
+        .split('-')[1]}")"""
+}}
             }
         }
     }
@@ -283,7 +280,7 @@ plugins {
 }
 
 tasks.register<Jar>("sourcesJar") {
-    from(sourceSets.main.get().allJava)
+    from(sourceSets.main.get().allSource)
     archiveClassifier.set("sources")
 }
 
