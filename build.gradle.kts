@@ -16,7 +16,7 @@ val awsCdkVersion: String by project
 
 allprojects {
     group = "jp.justincase"
-    version = "$awsCdkVersion-0.3.1"
+    version = "$awsCdkVersion-0.3.0"
 
     repositories {
         mavenCentral()
@@ -127,7 +127,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
                     kotlinVersion,
                     bintrayUser,
                     bintrayKey,
-                    File(buildDir, "cdkdsl")
+                    File(buildDir, "cdkdsl/$it")
                 )
             }
         }
@@ -154,7 +154,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
                 uploadGeneratedFile(
                     null,
                     it,
-                    File(buildDir, "cdkdsl")
+                    File(buildDir, "cdkdsl/$it")
                 )
             }
         }
