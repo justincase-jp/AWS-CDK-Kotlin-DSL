@@ -51,7 +51,7 @@ val taskCheckCdkUpdate by tasks.register("checkCdkUpdate") {
     this.group = "auto update"
     this.dependsOn(taskGetCdkModules)
     doLast {
-        getCdkUpdatedVersions().forEach { key, value ->
+        getCdkUpdatedVersions().forEach { (key, value) ->
             value.forEach { println("$key:$it") }
         }
     }
@@ -77,7 +77,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         this.dependsOn(taskCreateBintrayPackage)
         this.dependsOn(tasks.getByPath(":dsl-generator:publishToMavenLocal"))
         doLast {
-            cdkLatestVersions.forEach { (module, list) ->
+            cdkLatestUnhandledVersions.forEach { (module, list) ->
                 list.forEach {
                     generateBuildFile(
                         project.version as String,
