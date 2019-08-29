@@ -109,12 +109,13 @@ suspend fun generateBuildFileInternal(
         }
     }
     withContext(Dispatchers.IO) {
-        ProcessBuilder("gradle", "--parallel", ":generator:run", "build").run {
+        val exitCode = ProcessBuilder("gradle", "--parallel", ":generator:run", "build").run {
             inheritIO()
             directory(targetDir)
             environment()["PATH"] = System.getenv("PATH")
             start()
         }.waitFor()
+        if (exitCode != 0) throw RuntimeException("Process exited with non-zero code: $exitCode. target module is $cdkModule:$cdkVersion")
     }
     println("Code generation for $cdkModule:$targetCdkVersion have done.")
 }
@@ -141,12 +142,13 @@ fun uploadGeneratedFile(
 ) {
     val targetCdkVersion = (cdkVersion ?: latestDependedCdkVersions.getValue(cdkModule)).toString()
     val targetDir = File(baseDir, targetCdkVersion)
-    ProcessBuilder("gradle", "bintrayUpload", "--parallel").run {
+    val exitCode = ProcessBuilder("gradle", "bintrayUpload", "--parallel").run {
         inheritIO()
         directory(targetDir)
         environment()["PATH"] = System.getenv("PATH")
         start()
     }.waitFor()
+    if (exitCode != 0) throw RuntimeException("Process exited with non-zero code: $exitCode. target module is $cdkModule:$cdkVersion")
     println("Upload for $cdkModule:$targetCdkVersion have done.")
 }
 
