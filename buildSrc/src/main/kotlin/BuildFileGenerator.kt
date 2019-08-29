@@ -2,6 +2,7 @@ import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.*
 import java.io.File
 
+
 @KtorExperimentalAPI
 fun generateBuildFiles(
     projectVersion: String,
@@ -109,12 +110,22 @@ suspend fun generateBuildFileInternal(
         }
     }
     withContext(Dispatchers.IO) {
+        println("Code generation for $cdkModule:$targetCdkVersion will be start")
+        println("==========".repeat(5))
         val exitCode = ProcessBuilder("gradle", "--parallel", ":generator:run", "build").run {
-            inheritIO()
             directory(targetDir)
             environment()["PATH"] = System.getenv("PATH")
-            start()
+            start().apply {
+                val reader = inputStream.bufferedReader(Charsets.UTF_8)
+                val builder = StringBuilder()
+                var c: Int
+                while (reader.read().apply { c = this } != -1) {
+                    builder.append(c.toChar())
+                }
+                println(builder.toString())
+            }
         }.waitFor()
+        println("==========".repeat(5))
         if (exitCode != 0) throw RuntimeException("Process exited with non-zero code: $exitCode. target module is $cdkModule:$cdkVersion")
     }
     println("Code generation for $cdkModule:$targetCdkVersion have done.")
