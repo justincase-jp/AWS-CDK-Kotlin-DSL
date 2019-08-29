@@ -219,11 +219,9 @@ publishing {
     
                 ${moduleDependencyMap.getValue(cdkModule)
     .map {
-        """parent.addDependency("jp.justincase.aws-cdk-kotlin-dsl", "$cdkModule", "$cdkVersion-${projectVersion.split(
-            '-'
-        )[1]}")"""
-    }
-    .joinToString("\n    ")}
+        """parent.addDependency("jp.justincase.aws-cdk-kotlin-dsl", "$it", "$cdkVersion-${projectVersion
+            .split('-')[1]}")"""
+    }.joinToString("\n                ")}
             }
         }
     }
