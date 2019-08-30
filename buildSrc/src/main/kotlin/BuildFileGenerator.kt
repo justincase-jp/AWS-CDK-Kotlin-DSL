@@ -110,25 +110,29 @@ suspend fun generateBuildFileInternal(
     }
     withContext(Dispatchers.IO) {
         println("Code generation for $cdkModule:$targetCdkVersion will be start")
-        println("==========".repeat(5))
-        val exitCode = ProcessBuilder("gradle", "--parallel", "-S", ":generator:run", "build").run {
-            directory(targetDir)
-            environment()["PATH"] = System.getenv("PATH")
-            redirectErrorStream(true)
-            start().apply {
-                val reader = inputStream.bufferedReader(Charsets.UTF_8)
-                val builder = StringBuilder()
-                var c: Int
-                while (reader.read().apply { c = this } != -1) {
-                    builder.append(c.toChar())
-                }
-                println(builder.toString())
-            }
+        println("==========".repeat(8))
+        val exitCode = ProcessBuilder("gradle", "--parallel", "-S", ":generator:run", ":generated:build").run {
+            setupCommand(targetDir)
         }.waitFor()
-        println("==========".repeat(5))
+        println("==========".repeat(8))
         if (exitCode != 0) throw RuntimeException("Process exited with non-zero code: $exitCode. target module is $cdkModule:$cdkVersion")
     }
     println("Code generation for $cdkModule:$targetCdkVersion have done.")
+}
+
+private fun ProcessBuilder.setupCommand(targetDir: File): Process {
+    directory(targetDir)
+    environment()["PATH"] = System.getenv("PATH")
+    redirectErrorStream(true)
+    return start().apply {
+        val reader = inputStream.bufferedReader(Charsets.UTF_8)
+        val builder = StringBuilder()
+        var c: Int
+        while (reader.read().apply { c = this } != -1) {
+            builder.append(c.toChar())
+        }
+        println(builder.toString())
+    }
 }
 
 fun uploadGeneratedFiles(
@@ -153,13 +157,12 @@ fun uploadGeneratedFile(
 ) {
     val targetCdkVersion = (cdkVersion ?: latestDependedCdkVersions.getValue(cdkModule)).toString()
     val targetDir = File(baseDir, targetCdkVersion)
+    println("==========".repeat(8))
     val exitCode = ProcessBuilder("gradle", "--parallel", "-S", "bintrayUpload").run {
-        inheritIO()
-        directory(targetDir)
-        environment()["PATH"] = System.getenv("PATH")
-        start()
+        setupCommand(targetDir)
     }.waitFor()
-    if (exitCode != 0) throw RuntimeException("Process exited with non-zero code: $exitCode. target module is $cdkModule:$cdkVersion")
+    println("==========".repeat(8))
+    if (exitCode != 0) throw RuntimeException("Process exited with non-zero code: $exitCode. target module is $cdkModule:$targetCdkVersion")
     println("Upload for $cdkModule:$targetCdkVersion have done.")
 }
 
