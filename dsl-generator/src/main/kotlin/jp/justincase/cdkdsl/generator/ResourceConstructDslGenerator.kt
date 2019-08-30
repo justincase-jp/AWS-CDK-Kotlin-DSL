@@ -14,7 +14,7 @@ object ResourceConstructDslGenerator : ICdkDslGenerator {
     private lateinit var file: FileSpec.Builder
 
     override fun run(classes: Sequence<Class<out Any>>, targetDir: File, moduleName: String) {
-        file = getFileSpecBuilder("ResourceConstructDsl", moduleName, classes.first().getPackageName())
+        file = getFileSpecBuilder("ResourceConstructDsl", classes.first().getTrimmedPackageName())
         /*
         Generation target:
         ・subClass of software.amazon.awscdk.core.Resource or implement IResource
@@ -53,7 +53,7 @@ object ResourceConstructDslGenerator : ICdkDslGenerator {
             val propClass = constructor.parameters.single(::isPropertyArg).type
             val builderClass =
                 ClassName(
-                    "jp.justincase.cdkdsl.${clazz.getPackageName()}",
+                    "jp.justincase.cdkdsl.${clazz.getTrimmedPackageName()}",
                     "${propClass.simpleName}BuilderScope"
                 )
             file.addFunction(

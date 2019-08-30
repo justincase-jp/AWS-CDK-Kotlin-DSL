@@ -10,12 +10,12 @@ import kotlin.reflect.full.memberFunctions
 
 object PropClassExtensionGenerator : ICdkDslGenerator {
     private lateinit var file: FileSpec.Builder
-    val classFiles = mutableMapOf<String, FileSpec.Builder>()
+    private val classFiles = mutableMapOf<String, FileSpec.Builder>()
 
     private val ignoreFunctionNames = setOf("build", "toString", "hashCode", "equals")
 
     override fun run(classes: Sequence<Class<out Any>>, targetDir: File, moduleName: String) {
-        file = getFileSpecBuilder("PropClassExtensions", moduleName, classes.first().getPackageName())
+        file = getFileSpecBuilder("PropClassExtensions", classes.first().getTrimmedPackageName())
 
         val classGroup = classes.filter { it.simpleName == "Builder" }
             .map { it.kotlin }
@@ -147,7 +147,7 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
     }
 
     private fun getClassFile(clazz: KClass<*>): FileSpec.Builder {
-        val pack = clazz.java.getPackageName()
+        val pack = clazz.java.getTrimmedPackageName()
         return classFiles[pack] ?: FileSpec.builder(
             "jp.justincase.cdkdsl.$pack",
             pack.split('.').last().capitalize()

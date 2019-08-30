@@ -11,7 +11,8 @@ import java.io.File
  */
 val generators = mutableListOf(
     ResourceConstructDslGenerator,
-    PropClassExtensionGenerator
+    PropClassExtensionGenerator,
+    AddFunctionsWrapperGenerator
 )
 
 fun main(args: Array<String>) {
@@ -31,16 +32,10 @@ fun main(targetDir: File, moduleName: String) {
     }
 }
 
-fun getFileSpecBuilder(fileName: String, moduleName: String, packageName: String): FileSpec.Builder =
+fun getFileSpecBuilder(fileName: String, packageName: String): FileSpec.Builder =
     FileSpec.builder("jp.justincase.cdkdsl.$packageName", fileName).apply {
         addAnnotation(AnnotationSpec.builder(Suppress::class).addMember("%S", "FunctionName, Unused").build())
-        addAnnotation(
-            AnnotationSpec.builder(JvmName::class).addMember(
-                "%S",
-                "ResourceConstructDsl${moduleName.capitalize()}"
-            ).build()
-        )
     }
 
-fun Class<*>.getPackageName() =
+fun Class<*>.getTrimmedPackageName() =
     `package`.name.split('.').drop(3).joinToString(".")
