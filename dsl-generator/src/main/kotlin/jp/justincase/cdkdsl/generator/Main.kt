@@ -24,7 +24,7 @@ fun main(targetDir: File, moduleName: String) {
     val cdkClasses = ClassPath.from(ClassLoader.getSystemClassLoader()).allClasses.asSequence()
         .filter { it.packageName.startsWith("software.amazon.awscdk") }
         .map { it.load() }
-        .filter { File(it.protectionDomain.codeSource.location.toURI()).name.split('-').first() == moduleName }
+        .filter { File(it.protectionDomain.codeSource.location.toURI()).name.split('-').let { str -> str[str.lastIndex - 1] } == moduleName }
 
     val srcDir = File(targetDir, "src/main/kotlin").also { if (!it.exists()) it.mkdirs() }
     generators.forEach {

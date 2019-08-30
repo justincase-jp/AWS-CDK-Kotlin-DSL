@@ -15,7 +15,7 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
     private val ignoreFunctionNames = setOf("build", "toString", "hashCode", "equals")
 
     override fun run(classes: Sequence<Class<out Any>>, targetDir: File, moduleName: String) {
-        file = getFileSpecBuilder("PropClassExtensions", classes.first().getTrimmedPackageName())
+        file = getFileSpecBuilder("PropClassExtensions", classes.firstOrNull()?.getTrimmedPackageName() ?: return)
 
         val classGroup = classes.filter { it.simpleName == "Builder" }
             .map { it.kotlin }

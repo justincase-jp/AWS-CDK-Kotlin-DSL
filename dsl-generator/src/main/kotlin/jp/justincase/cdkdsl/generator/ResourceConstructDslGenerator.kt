@@ -14,7 +14,7 @@ object ResourceConstructDslGenerator : ICdkDslGenerator {
     private lateinit var file: FileSpec.Builder
 
     override fun run(classes: Sequence<Class<out Any>>, targetDir: File, moduleName: String) {
-        file = getFileSpecBuilder("ResourceConstructDsl", classes.first().getTrimmedPackageName())
+        file = getFileSpecBuilder("ResourceConstructDsl", classes.firstOrNull()?.getTrimmedPackageName() ?: return)
         /*
         Generation target:
         ・subClass of software.amazon.awscdk.core.Resource or implement IResource
