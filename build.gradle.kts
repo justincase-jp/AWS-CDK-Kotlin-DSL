@@ -16,7 +16,7 @@ val awsCdkVersion: String by project
 
 allprojects {
     group = "jp.justincase"
-    version = "$awsCdkVersion-0.3.3"
+    version = "$awsCdkVersion-0.4.0"
 
     repositories {
         mavenCentral()
@@ -78,7 +78,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         this.dependsOn(tasks.getByPath(":dsl-generator:publishToMavenLocal"))
         doLast {
             cdkLatestUnhandledVersions.forEach { (module, list) ->
-                list.forEach {
+                list.onEach {
                     generateBuildFile(
                         project.version as String,
                         it,
@@ -88,6 +88,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
                         bintrayKey,
                         File(buildDir, "cdkdsl/$module")
                     )
+                }.forEach {
                     uploadGeneratedFile(
                         it,
                         module,

@@ -73,8 +73,7 @@ suspend fun generateBuildFileInternal(
                     cdkModule,
                     kotlinVersion,
                     bintrayUser,
-                    bintrayApiKey,
-                    targetDir
+                    bintrayApiKey
                 )
             )
         }
@@ -170,8 +169,7 @@ private fun getRootBuildGradleKtsFileText(
     cdkModule: String,
     kotlinVersion: String,
     bintrayUser: String,
-    bintrayApiKey: String,
-    targetDir: File
+    bintrayApiKey: String
 ): String = """
 import org.w3c.dom.Node
 import com.jfrog.bintray.gradle.BintrayExtension
