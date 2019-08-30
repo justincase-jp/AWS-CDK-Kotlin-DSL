@@ -13,7 +13,7 @@ import java.util.*
 private lateinit var file: FileSpec.Builder
 
 fun genResourceConstructResource(classes: Sequence<Class<out Any>>, targetDir: File, moduleName: String) {
-    file = getFileSpecBuilder("ResourceConstructDsl", moduleName)
+    file = getFileSpecBuilder("ResourceConstructDsl", moduleName, classes.first().getPackageName())
     /*
     Generation target:
     ・subClass of software.amazon.awscdk.core.Resource or implement IResource
@@ -52,7 +52,7 @@ private fun generate(clazz: Class<out Resource>) {
         val propClass = constructor.parameters.single(::isPropertyArg).type
         val builderClass =
             ClassName(
-                "jp.justincase.cdkdsl.${clazz.`package`.name.split('.').drop(3).joinToString(".")}",
+                "jp.justincase.cdkdsl.${clazz.getPackageName()}",
                 "${propClass.simpleName}BuilderScope"
             )
         file.addFunction(

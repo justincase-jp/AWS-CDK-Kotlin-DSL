@@ -21,8 +21,8 @@ fun main(targetDir: File, moduleName: String) {
     genPropClassExtensions(cdkClasses, srcDir, moduleName)
 }
 
-fun getFileSpecBuilder(fileName: String, moduleName: String): FileSpec.Builder =
-    FileSpec.builder("jp.justincase.cdkdsl", fileName).apply {
+fun getFileSpecBuilder(fileName: String, moduleName: String, packageName: String): FileSpec.Builder =
+    FileSpec.builder("jp.justincase.cdkdsl.$packageName", fileName).apply {
         addAnnotation(AnnotationSpec.builder(Suppress::class).addMember("%S", "FunctionName, Unused").build())
         addAnnotation(
             AnnotationSpec.builder(JvmName::class).addMember(
@@ -31,3 +31,6 @@ fun getFileSpecBuilder(fileName: String, moduleName: String): FileSpec.Builder =
             ).build()
         )
     }
+
+fun Class<*>.getPackageName() =
+    `package`.name.split('.').drop(3).joinToString(".")

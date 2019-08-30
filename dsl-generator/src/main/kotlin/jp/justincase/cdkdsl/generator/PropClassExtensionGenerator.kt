@@ -14,7 +14,7 @@ val classFiles = mutableMapOf<String, FileSpec.Builder>()
 private val ignoreFunctionNames = setOf("build", "toString", "hashCode", "equals")
 
 fun genPropClassExtensions(classes: Sequence<Class<out Any>>, targetDir: File, moduleName: String) {
-    file = getFileSpecBuilder("PropClassExtensions", moduleName)
+    file = getFileSpecBuilder("PropClassExtensions", moduleName, classes.first().getPackageName())
 
     val classGroup = classes.filter { it.simpleName == "Builder" }
         .map { it.kotlin }
@@ -146,7 +146,7 @@ private fun TypeSpec.Builder.addPropertyForDuplicatedMethods(name: String, metho
 }
 
 private fun getClassFile(clazz: KClass<*>): FileSpec.Builder {
-    val pack = clazz.java.`package`.name.split('.').drop(3).joinToString(".")
+    val pack = clazz.java.getPackageName()
     return classFiles[pack] ?: FileSpec.builder(
         "jp.justincase.cdkdsl.$pack",
         pack.split('.').last().capitalize()
