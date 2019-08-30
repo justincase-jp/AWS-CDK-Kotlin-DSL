@@ -3,6 +3,7 @@ package jp.justincase.cdkdsl.generator
 import com.squareup.kotlinpoet.*
 import java.io.File
 import kotlin.reflect.KClass
+import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
 import kotlin.reflect.full.declaredFunctions
 
@@ -51,7 +52,7 @@ object AddFunctionsWrapperGenerator : ICdkDslGenerator {
                     if (!wrappedPropClasses.contains(propClass)) {
                         createPropBuilder(propClass, lambdaType)
                     }
-                    createPlusAssign(clazz, lambdaType, propClass, builderScope)
+                    createPlusAssign(clazz, lambdaType, builderScope, func)
                 }
             }
         propBuilderFile.build().writeTo(targetDir)
@@ -75,20 +76,21 @@ object AddFunctionsWrapperGenerator : ICdkDslGenerator {
     private fun createPlusAssign(
         clazz: KClass<out Any>,
         lambdaType: LambdaTypeName,
-        propClass: KClass<*>,
-        builderScope: ClassName
+        builderScope: ClassName,
+        func: KFunction<*>
     ) {
         operatorFunFile.addFunction(
             FunSpec.builder("plusAssign")
                 .addModifiers(KModifier.OPERATOR)
                 .receiver(clazz)
+                .returns(UNIT)
                 .addParameter("value", ParameterizedTypeName.run {
                     Pair::class.asTypeName().parameterizedBy(
                         String::class.asTypeName(), lambdaType
                     )
                 })
                 .addStatement(
-                    "return ${propClass.simpleName!!.decapitalize()}(value.first, %T().also(value.second).build())",
+                    "${func.name}(value.first, %T().also(value.second).build())",
                     builderScope
                 )
                 .build()
