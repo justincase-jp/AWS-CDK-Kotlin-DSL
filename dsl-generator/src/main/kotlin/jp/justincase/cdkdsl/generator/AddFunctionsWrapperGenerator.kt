@@ -42,7 +42,7 @@ object AddFunctionsWrapperGenerator : ICdkDslGenerator {
                         func.parameters.filter { it.kind == KParameter.Kind.VALUE }[1].type.classifier as KClass<*>
 
                     val builderScope = ClassName(
-                        propClass.java.getTrimmedPackageName(),
+                        "jp.justincase.cdkdsl.${propClass.java.getTrimmedPackageName()}",
                         "${propClass.simpleName}BuilderScope"
                     )
                     val lambdaType = LambdaTypeName.get(
@@ -67,7 +67,7 @@ object AddFunctionsWrapperGenerator : ICdkDslGenerator {
                     "configuration",
                     lambdaType
                 )
-                .addStatement("return id to configuration")
+                .addStatement("return id.to(configuration)")
                 .build()
         )
         wrappedPropClasses += propClass
@@ -81,6 +81,12 @@ object AddFunctionsWrapperGenerator : ICdkDslGenerator {
     ) {
         operatorFunFile.addFunction(
             FunSpec.builder("plusAssign")
+                .addAnnotation(
+                    AnnotationSpec.builder(JvmName::class).addMember(
+                        "%S",
+                        "plugAssign${builderScope.simpleName}"
+                    ).build()
+                )
                 .addModifiers(KModifier.OPERATOR)
                 .receiver(clazz)
                 .returns(UNIT)
