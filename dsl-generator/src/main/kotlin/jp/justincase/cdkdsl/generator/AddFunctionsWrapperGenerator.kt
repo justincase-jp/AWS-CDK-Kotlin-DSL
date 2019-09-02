@@ -62,18 +62,12 @@ object AddFunctionsWrapperGenerator : ICdkDslGenerator {
     private fun createPropBuilder(propClass: KClass<*>, lambdaType: LambdaTypeName) {
         propBuilderFile.addFunction(
             FunSpec.builder(propClass.simpleName!!.decapitalize())
-                .addAnnotation(
-                    AnnotationSpec.builder(JvmName::class).addMember(
-                        "%S",
-                        "plugAssign${propClass.simpleName}"
-                    ).build()
-                )
                 .addParameter("id", String::class)
                 .addParameter(
                     "configuration",
                     lambdaType
                 )
-                .addStatement("return id to configuration")
+                .addStatement("return id.to(configuration)")
                 .build()
         )
         wrappedPropClasses += propClass
@@ -87,6 +81,12 @@ object AddFunctionsWrapperGenerator : ICdkDslGenerator {
     ) {
         operatorFunFile.addFunction(
             FunSpec.builder("plusAssign")
+                .addAnnotation(
+                    AnnotationSpec.builder(JvmName::class).addMember(
+                        "%S",
+                        "plugAssign${builderScope.simpleName}"
+                    ).build()
+                )
                 .addModifiers(KModifier.OPERATOR)
                 .receiver(clazz)
                 .returns(UNIT)
