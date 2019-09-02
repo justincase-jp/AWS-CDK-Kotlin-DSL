@@ -22,11 +22,14 @@ object ResourceConstructDslGenerator : ICdkDslGenerator {
         ・is not interface, annotation, abstract-class, enum
          */
         classes
-            .filter(::isResourceSubClass)
             .filter { !it.isInterface && !it.isAnnotation && !it.isEnum && (it.modifiers and Modifier.ABSTRACT) == 0 }
             .forEach {
                 @Suppress("UNCHECKED_CAST")
-                generate(it as Class<out Resource>)
+                if (isResourceSubClass(it)) {
+                    InternalGenerator.WithId
+                } else {
+                    InternalGenerator.OnlyProperty
+                }.generate(it as Class<out Resource>)
             }
         file.build().writeTo(targetDir)
     }
@@ -42,39 +45,77 @@ object ResourceConstructDslGenerator : ICdkDslGenerator {
         return isResourceSubClass(clazz.superclass)
     }
 
-    private fun checkConstructorIsValid(constructor: Constructor<*>) =
-        constructor.parameters.size == 3
-                && constructor.parameters[0].type == Construct::class.java
-                && constructor.parameters[1].type == java.lang.String::class.java
-                && isPropertyArg(constructor.parameters[2])
-
-    private fun generate(clazz: Class<out Resource>) {
-        clazz.constructors.singleOrNull(::checkConstructorIsValid)?.let { constructor ->
-            val propClass = constructor.parameters.single(::isPropertyArg).type
-            val builderClass =
-                ClassName(
-                    "jp.justincase.cdkdsl.${clazz.getTrimmedPackageName()}",
-                    "${propClass.simpleName}BuilderScope"
-                )
-            file.addFunction(
-                FunSpec.builder(clazz.simpleName).apply {
-                    returns(clazz)
-                    addParameter("scope", Construct::class)
-                    addParameter("id", String::class)
-                    addParameter(
-                        "configureProps",
-                        LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
-                    )
-                    addStatement("return %T(scope, id, %T().also(configureProps).build())", clazz, builderClass)
-                }.build()
-            )
-        }
-    }
-
     private fun isPropertyArg(parameter: Parameter): Boolean =
         parameter.type != Construct::class.java
                 && parameter.type != java.lang.String::class.java
                 && !parameter.type.isPrimitive
                 && parameter.type.declaredClasses.any { it.simpleName == "Builder" }
 
+    @Suppress("unused")
+    private sealed class InternalGenerator {
+        abstract fun generate(clazz: Class<out Resource>)
+
+        fun getPropClass(constructor: Constructor<*>) = constructor.parameters.single(::isPropertyArg).type!!
+
+        fun getBuilderClassName(
+            clazz: Class<out Resource>,
+            propClass: Class<*>
+        ): ClassName {
+            return ClassName(
+                "jp.justincase.cdkdsl.${clazz.getTrimmedPackageName()}",
+                "${propClass.simpleName}BuilderScope"
+            )
+        }
+
+        object WithId : InternalGenerator() {
+            private fun checkConstructorIsValid(constructor: Constructor<*>) =
+                constructor.parameters.size == 3
+                        && constructor.parameters[0].type == Construct::class.java
+                        && constructor.parameters[1].type == java.lang.String::class.java
+                        && isPropertyArg(constructor.parameters[2])
+
+            override fun generate(clazz: Class<out Resource>) {
+                clazz.constructors.singleOrNull(this::checkConstructorIsValid)?.let { constructor ->
+                    val propClass = getPropClass(constructor)
+                    val builderClass = getBuilderClassName(clazz, propClass)
+                    file.addFunction(
+                        FunSpec.builder(clazz.simpleName).apply {
+                            returns(clazz)
+                            receiver(Construct::class)
+                            addParameter("id", String::class)
+                            addParameter(
+                                "configureProps",
+                                LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
+                            )
+                            addStatement("return %T(this, id, %T().also(configureProps).build())", clazz, builderClass)
+                        }.build()
+                    )
+                }
+            }
+        }
+
+        object OnlyProperty : InternalGenerator() {
+            private fun checkConstructorIsValid(constructor: Constructor<*>) =
+                constructor.parameters.size == 1
+                        && isPropertyArg(constructor.parameters[0])
+
+            override fun generate(clazz: Class<out Resource>) {
+                clazz.constructors.singleOrNull(this::checkConstructorIsValid)?.let { constructor ->
+                    val propClass = getPropClass(constructor)
+                    val builderClass = getBuilderClassName(clazz, propClass)
+                    file.addFunction(
+                        FunSpec.builder(clazz.simpleName).apply {
+                            returns(clazz)
+                            receiver(Construct::class)
+                            addParameter(
+                                "configureProps",
+                                LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
+                            )
+                            addStatement("return %T(%T().also(configureProps).build())", clazz, builderClass)
+                        }.build()
+                    )
+                }
+            }
+        }
+    }
 }
