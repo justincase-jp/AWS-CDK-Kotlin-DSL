@@ -44,56 +44,71 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
         file.build().writeTo(targetDir)
     }
 
-    private fun buildClasses(list: List<KClass<*>>) = list.associateWith { clazz ->
-        val wrapper = TypeSpec.classBuilder("${clazz.java.declaringClass.simpleName}BuilderScope")
-        val methods = clazz.memberFunctions
-            .filter { !ignoreFunctionNames.contains(it.name) && it.arguments.size == 1 && !it.isExternal }
-        val duplicates = methods.groupBy { it.name }.filterValues { it.count() >= 2 }.toMutableMap()
-        val handledDuplicates = mutableSetOf<String>()
-        if (methods.map { it.name }.toSet().size != methods.size) {
-            if (!methods.any { it.arguments.map { param -> param.type }.single() == IResolvable::class }) {
-                return@associateWith null
-            }
-        }
-        methods.forEach {
-            val name = it.name
-            val dup = duplicates[name]
-            if (dup != null) {
-                if (!handledDuplicates.contains(name)) {
-                    wrapper.addPropertyForDuplicatedMethods(name, dup)
-                    handledDuplicates += name
+    private fun buildClasses(list: List<KClass<*>>): Map<KClass<*>, TypeSpec> {
+        return list.associateWith { clazz ->
+            val typeVariable = TypeVariableName("T")
+            val wrapper = TypeSpec.classBuilder("${clazz.java.declaringClass.simpleName}BuilderScope")
+            val nullableListType =
+                ParameterizedTypeName.run { List::class.asTypeName().plusParameter(typeVariable) }.copy(nullable = true)
+            wrapper.addFunction(
+                FunSpec.builder("plus")
+                    .returns(nullableListType)
+                    .receiver(nullableListType)
+                    .addModifiers(KModifier.OPERATOR)
+                    .addTypeVariable(typeVariable)
+                    .addParameter("element", typeVariable)
+                    .addStatement("return this?.nonNullPlus(element) ?: listOf(element)")
+                    .build()
+            )
+            val methods = clazz.memberFunctions
+                .filter { !ignoreFunctionNames.contains(it.name) && it.arguments.size == 1 && !it.isExternal }
+            val duplicates = methods.groupBy { it.name }.filterValues { it.count() >= 2 }.toMutableMap()
+            val handledDuplicates = mutableSetOf<String>()
+            if (methods.map { it.name }.toSet().size != methods.size) {
+                if (!methods.any { it.arguments.map { param -> param.type }.single() == IResolvable::class }) {
+                    return@associateWith null
                 }
-            } else {
-                wrapper.addProperty(it)
             }
-        }
-        handledDuplicates.clear()
-        wrapper.addFunction(FunSpec.builder("build")
-            .returns(clazz.java.declaringClass.kotlin)
-            .addStatement("val builder = %T()", clazz)
-            .apply {
-                methods.forEach { method ->
-                    val name = method.name
-                    val fieldName = name.decapitalize()
-                    if (duplicates[name] != null) {
-                        addStatement("if( _$fieldName != null && ${fieldName}TypeFlag != null) {")
-                        addStatement(
-                            "if( ${fieldName}TypeFlag ) { builder.$name( _$fieldName as IResolvable) }"
-                        )
-                        addStatement(
-                            "else { builder.$name( _$name as %T }",
-                            duplicates[name]!!.single { it.arguments.single().type != IResolvable::class }.arguments.single().type
-                        )
-                        addStatement("}")
-                    } else {
-                        addStatement("${fieldName}?.let{ builder.$name(it) }")
+            methods.forEach {
+                val name = it.name
+                val dup = duplicates[name]
+                if (dup != null) {
+                    if (!handledDuplicates.contains(name)) {
+                        wrapper.addPropertyForDuplicatedMethods(name, dup)
+                        handledDuplicates += name
+                    }
+                } else {
+                    wrapper.addProperty(it)
+                }
+            }
+            handledDuplicates.clear()
+            wrapper.addFunction(FunSpec.builder("build")
+                .returns(clazz.java.declaringClass.kotlin)
+                .addStatement("val builder = %T()", clazz)
+                .apply {
+                    methods.forEach { method ->
+                        val name = method.name
+                        val fieldName = name.decapitalize()
+                        if (duplicates[name] != null) {
+                            addStatement("if( _$fieldName != null && ${fieldName}TypeFlag != null) {")
+                            addStatement(
+                                "if( ${fieldName}TypeFlag ) { builder.$name( _$fieldName as IResolvable) }"
+                            )
+                            addStatement(
+                                "else { builder.$name( _$name as %T }",
+                                duplicates[name]!!.single { it.arguments.single().type != IResolvable::class }.arguments.single().type
+                            )
+                            addStatement("}")
+                        } else {
+                            addStatement("${fieldName}?.let{ builder.$name(it) }")
+                        }
                     }
                 }
-            }
-            .addStatement("return builder.build()")
-            .build())
-        wrapper.build()
-    }.mapNotNull { if (it.value == null) null else it.key to it.value!! }.toMap()
+                .addStatement("return builder.build()")
+                .build())
+            wrapper.build()
+        }.mapNotNull { if (it.value == null) null else it.key to it.value!! }.toMap()
+    }
 
     private fun TypeSpec.Builder.addProperty(method: KFunction<*>) {
         val parameterType = method.arguments.single().type.asTypeName().copy(nullable = true)
@@ -153,6 +168,7 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
             pack.split('.').last().capitalize()
         ).apply {
             addAnnotation(AnnotationSpec.builder(Suppress::class).addMember("%S, %S", "FunctionName", "Unused").build())
+            addAliasedImport(MemberName("kotlin.collections", "plus"), "nonNullPlus")
             classFiles[pack] = this
         }
     }
