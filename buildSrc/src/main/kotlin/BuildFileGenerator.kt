@@ -111,7 +111,7 @@ suspend fun generateBuildFileInternal(
     withContext(Dispatchers.IO) {
         println("Code generation for $cdkModule:$targetCdkVersion will be start")
         println("==========".repeat(8))
-        val exitCode = ProcessBuilder("gradle", "--parallel", "-S", ":generator:run", ":generated:build").run {
+        val exitCode = ProcessBuilder("gradle", "-S", ":generator:run", ":generated:build").run {
             setupCommand(targetDir)
         }.waitFor()
         println("==========".repeat(8))
@@ -158,7 +158,7 @@ fun uploadGeneratedFile(
     val targetCdkVersion = (cdkVersion ?: latestDependedCdkVersions.getValue(cdkModule)).toString()
     val targetDir = File(baseDir, targetCdkVersion)
     println("==========".repeat(8))
-    val exitCode = ProcessBuilder("gradle", "--parallel", "-S", "bintrayUpload").run {
+    val exitCode = ProcessBuilder("gradle", "-S", "bintrayUpload").run {
         setupCommand(targetDir)
     }.waitFor()
     println("==========".repeat(8))
