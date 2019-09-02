@@ -62,6 +62,7 @@ object AddFunctionsWrapperGenerator : ICdkDslGenerator {
     private fun createPropBuilder(propClass: KClass<*>, lambdaType: LambdaTypeName) {
         propBuilderFile.addFunction(
             FunSpec.builder(propClass.simpleName!!.decapitalize())
+                .addAnnotation(AnnotationSpec.builder(JvmName::class).addMember("plugAssign${propClass.simpleName}").build())
                 .addParameter("id", String::class)
                 .addParameter(
                     "configuration",
