@@ -89,10 +89,7 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
                         if (duplicates[name] != null) {
                             addStatement("if( _$fieldName != null && ${fieldName}TypeFlag != null) {")
                             addStatement(
-                                "if( ${fieldName}TypeFlag ) { builder.$name( _$fieldName as IResolvable) }"
-                            )
-                            addStatement(
-                                "else { builder.$name( _$name as %T }",
+                                "if(${fieldName}TypeFlag == true) { builder.$name( _$fieldName as IResolvable) } else { builder.$name( _$name as %T ) }",
                                 duplicates[name]!!.single { it.arguments.single().type.classifier != IResolvable::class }.arguments.single().type.asTypeName()
                             )
                             addStatement("}")
@@ -138,7 +135,7 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
             val nullable = parameterType.asTypeName().copy(nullable = true)
             addProperty(
                 PropertySpec.builder(
-                    if (parameterType == IResolvable::class.java) name else "cfn${name.capitalize()}",
+                    if (parameterType.classifier == IResolvable::class) name else "cfn${name.capitalize()}",
                     nullable
                 )
                     .mutable()
