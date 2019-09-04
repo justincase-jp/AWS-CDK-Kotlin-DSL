@@ -62,7 +62,7 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
             val duplicates = methods.groupBy { it.name }.filterValues { it.count() >= 2 }.toMutableMap()
             val handledDuplicates = mutableSetOf<String>()
             if (methods.map { it.name }.toSet().size != methods.size) {
-                if (!methods.any { it.arguments.map { param -> param.type }.single() == IResolvable::class }) {
+                if (!methods.any { it.arguments.map { param -> param.type.classifier }.singleOrNull() == IResolvable::class }) {
                     return@associateWith null
                 }
             }
@@ -93,7 +93,7 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
                             )
                             addStatement(
                                 "else { builder.$name( _$name as %T }",
-                                duplicates[name]!!.single { it.arguments.single().type != IResolvable::class }.arguments.single().type
+                                duplicates[name]!!.single { it.arguments.single().type.classifier != IResolvable::class }.arguments.single().type.asTypeName()
                             )
                             addStatement("}")
                         } else {
