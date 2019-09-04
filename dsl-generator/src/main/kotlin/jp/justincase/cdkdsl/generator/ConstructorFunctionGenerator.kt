@@ -18,14 +18,15 @@ object ConstructorFunctionGenerator : ICdkDslGenerator {
         ・is not annotation, enum
          */
         classes
-            .filter { !it.isInterface && !it.isAnnotation && !it.isEnum && (it.modifiers and Modifier.ABSTRACT) == 0 }
-            .forEach {
-                @Suppress("UNCHECKED_CAST")
-                if (isResourceSubClass(it)) {
-                    InternalGenerator.WithId
-                } else {
-                    InternalGenerator.OnlyProperty
-                }.generate(it as Class<out Resource>)
+            .filter { !it.isAnnotation && !it.isEnum && !it.isAnonymousClass }
+            .forEach { clazz ->
+                val generator = when {
+                    (clazz.modifiers and (Modifier.ABSTRACT or Modifier.INTERFACE)) != 0 -> InternalGenerator.Interface
+                    clazz.constructors.singleOrNull { it.isResourceTypeConstructor() } != null -> InternalGenerator.WithId
+                    clazz.constructors.singleOrNull { it.isPropertyOnlyConstructor() } != null -> InternalGenerator.OnlyProperty
+                    else -> null
+                }
+                generator?.generate(clazz)
             }
         file.build().writeTo(targetDir)
     }
@@ -101,6 +102,28 @@ object ConstructorFunctionGenerator : ICdkDslGenerator {
                         }.build()
                     )
                 }
+            }
+        }
+
+        object Interface : InternalGenerator() {
+
+            private fun Class<*>.haveBuilderClass() = declaredClasses.any { it.simpleName == "Builder" }
+
+            override fun generate(clazz: Class<*>) {
+                if (!clazz.haveBuilderClass()) return
+                val builderClass = getBuilderClassName(clazz, clazz)
+
+                file.addFunction(
+                    FunSpec.builder(clazz.simpleName).apply {
+                        returns(clazz)
+                        receiver(Construct::class)
+                        addParameter(
+                            "configureProps",
+                            LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
+                        )
+                        addStatement("return %T().also(configureProps).build()", builderClass)
+                    }.build()
+                )
             }
         }
     }
