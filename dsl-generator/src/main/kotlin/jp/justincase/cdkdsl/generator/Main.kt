@@ -10,7 +10,7 @@ import java.io.File
  * Create object implements [ICdkDslGenerator], add it to this, then run [main].
  */
 val generators = mutableListOf(
-    ResourceConstructDslGenerator,
+    ConstructorFunctionGenerator,
     PropClassExtensionGenerator,
     AddFunctionsWrapperGenerator
 )

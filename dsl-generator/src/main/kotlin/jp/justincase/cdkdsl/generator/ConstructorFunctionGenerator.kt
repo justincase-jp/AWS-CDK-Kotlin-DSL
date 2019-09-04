@@ -2,24 +2,20 @@ package jp.justincase.cdkdsl.generator
 
 import com.squareup.kotlinpoet.*
 import software.amazon.awscdk.core.Construct
-import software.amazon.awscdk.core.IResource
-import software.amazon.awscdk.core.Resource
 import java.io.File
 import java.lang.reflect.Constructor
 import java.lang.reflect.Modifier
 import java.lang.reflect.Parameter
-import java.util.*
 
-object ResourceConstructDslGenerator : ICdkDslGenerator {
+object ConstructorFunctionGenerator : ICdkDslGenerator {
     private lateinit var file: FileSpec.Builder
 
     override fun run(classes: Sequence<Class<out Any>>, targetDir: File, moduleName: String) {
-        file = getFileSpecBuilder("ResourceConstructDsl", classes.firstOrNull()?.getTrimmedPackageName() ?: return)
+        file = getFileSpecBuilder("ConstructorFunctions", classes.firstOrNull()?.getTrimmedPackageName() ?: return)
         /*
         Generation target:
-        ・subClass of software.amazon.awscdk.core.Resource or implement IResource
         ・have specific constructor parameter
-        ・is not interface, annotation, abstract-class, enum
+        ・is not annotation, enum
          */
         classes
             .filter { !it.isInterface && !it.isAnnotation && !it.isEnum && (it.modifiers and Modifier.ABSTRACT) == 0 }
@@ -34,31 +30,30 @@ object ResourceConstructDslGenerator : ICdkDslGenerator {
         file.build().writeTo(targetDir)
     }
 
-    private tailrec fun isResourceSubClass(clazz: Class<*>): Boolean {
-        if (clazz.interfaces.contains(IResource::class.java)) {
-            return true
-        } else if (clazz.superclass == Objects::class.java || clazz.superclass == null) {
-            return false
-        } else if (clazz.superclass == Resource::class.java) {
-            return true
-        }
-        return isResourceSubClass(clazz.superclass)
-    }
-
     private fun isPropertyArg(parameter: Parameter): Boolean =
         parameter.type != Construct::class.java
                 && parameter.type != java.lang.String::class.java
                 && !parameter.type.isPrimitive
                 && parameter.type.declaredClasses.any { it.simpleName == "Builder" }
 
+    private fun Constructor<*>.isResourceTypeConstructor() =
+        parameters.size == 3
+                && parameters[0].type == Construct::class.java
+                && parameters[1].type == java.lang.String::class.java
+                && isPropertyArg(parameters[2])
+
+    private fun Constructor<*>.isPropertyOnlyConstructor() =
+        parameters.size == 1
+                && isPropertyArg(parameters[0])
+
     @Suppress("unused")
     private sealed class InternalGenerator {
-        abstract fun generate(clazz: Class<out Resource>)
+        abstract fun generate(clazz: Class<*>)
 
         fun getPropClass(constructor: Constructor<*>) = constructor.parameters.single(::isPropertyArg).type!!
 
         fun getBuilderClassName(
-            clazz: Class<out Resource>,
+            clazz: Class<*>,
             propClass: Class<*>
         ): ClassName {
             return ClassName(
@@ -68,14 +63,8 @@ object ResourceConstructDslGenerator : ICdkDslGenerator {
         }
 
         object WithId : InternalGenerator() {
-            private fun checkConstructorIsValid(constructor: Constructor<*>) =
-                constructor.parameters.size == 3
-                        && constructor.parameters[0].type == Construct::class.java
-                        && constructor.parameters[1].type == java.lang.String::class.java
-                        && isPropertyArg(constructor.parameters[2])
-
-            override fun generate(clazz: Class<out Resource>) {
-                clazz.constructors.singleOrNull(this::checkConstructorIsValid)?.let { constructor ->
+            override fun generate(clazz: Class<*>) {
+                clazz.constructors.singleOrNull { it.isResourceTypeConstructor() }?.let { constructor ->
                     val propClass = getPropClass(constructor)
                     val builderClass = getBuilderClassName(clazz, propClass)
                     file.addFunction(
@@ -95,12 +84,9 @@ object ResourceConstructDslGenerator : ICdkDslGenerator {
         }
 
         object OnlyProperty : InternalGenerator() {
-            private fun checkConstructorIsValid(constructor: Constructor<*>) =
-                constructor.parameters.size == 1
-                        && isPropertyArg(constructor.parameters[0])
 
-            override fun generate(clazz: Class<out Resource>) {
-                clazz.constructors.singleOrNull(this::checkConstructorIsValid)?.let { constructor ->
+            override fun generate(clazz: Class<*>) {
+                clazz.constructors.singleOrNull { it.isPropertyOnlyConstructor() }?.let { constructor ->
                     val propClass = getPropClass(constructor)
                     val builderClass = getBuilderClassName(clazz, propClass)
                     file.addFunction(
