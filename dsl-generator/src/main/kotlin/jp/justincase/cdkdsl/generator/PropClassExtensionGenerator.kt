@@ -9,13 +9,11 @@ import kotlin.reflect.KParameter
 import kotlin.reflect.full.memberFunctions
 
 object PropClassExtensionGenerator : ICdkDslGenerator {
-    private lateinit var file: FileSpec.Builder
     private val classFiles = mutableMapOf<String, FileSpec.Builder>()
 
     private val ignoreFunctionNames = setOf("build", "toString", "hashCode", "equals")
 
     override fun run(classes: Sequence<Class<out Any>>, targetDir: File, moduleName: String) {
-        file = getFileSpecBuilder("PropClassExtensions", classes.firstOrNull()?.getTrimmedPackageName() ?: return)
 
         val classGroup = classes.filter { it.simpleName == "Builder" }
             .map { it.kotlin }
@@ -41,7 +39,6 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
         classFiles.forEach { (_, builder) ->
             builder.build().writeTo(targetDir)
         }
-        file.build().writeTo(targetDir)
     }
 
     private fun buildClasses(list: List<KClass<*>>): Map<KClass<*>, TypeSpec> {
