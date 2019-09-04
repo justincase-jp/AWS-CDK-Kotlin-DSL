@@ -301,6 +301,7 @@ tasks.register<Jar>("sourcesJar") {
 
 dependencies {
     api("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
+    implementation("software.amazon.awscdk", "core", "$cdkVersion")
 }
 """
 
