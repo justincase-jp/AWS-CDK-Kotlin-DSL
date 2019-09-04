@@ -23,7 +23,7 @@ suspend fun getModuleDependencies(): Map<String, List<String>> {
             async {
                 val version = cdkLatestVersions.getValue(module).toString()
                 val targetUrl =
-                    "http://central.maven.org/maven2/software/amazon/awscdk/$module/${version}/$module-${
+                    "http://central.maven.org/maven2/software/amazon/awscdk/$module/$version/$module-${
                     version}.pom"
                 val doc = withContext(Dispatchers.IO) {
                     val response = client.get<HttpResponse>(targetUrl)

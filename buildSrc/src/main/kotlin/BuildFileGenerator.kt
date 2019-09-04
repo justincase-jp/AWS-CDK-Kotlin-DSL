@@ -2,7 +2,6 @@ import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.*
 import java.io.File
 
-
 @KtorExperimentalAPI
 fun generateBuildFiles(
     projectVersion: String,
