@@ -57,10 +57,17 @@ object ConstructorFunctionGenerator : ICdkDslGenerator {
             clazz: Class<*>,
             propClass: Class<*>
         ): ClassName {
-            return ClassName(
-                "jp.justincase.cdkdsl.${clazz.getTrimmedPackageName()}",
-                "${propClass.simpleName}BuilderScope"
-            )
+            return if (propClass.declaringClass != null) {
+                ClassName(
+                    "jp.justincase.cdkdsl.${clazz.getTrimmedPackageName()}",
+                    "jp.justincase.cdkdsl.${propClass.getTrimmedPackageName()}.${propClass.declaringClass.simpleName}.${propClass.simpleName}BuilderScope"
+                )
+            } else {
+                ClassName(
+                    "jp.justincase.cdkdsl.${clazz.getTrimmedPackageName()}",
+                    "${propClass.simpleName}BuilderScope"
+                )
+            }
         }
 
         object WithId : InternalGenerator() {
