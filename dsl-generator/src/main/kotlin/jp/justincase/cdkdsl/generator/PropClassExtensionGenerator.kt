@@ -42,20 +42,8 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
 
     private fun buildClasses(list: List<KClass<*>>): Map<KClass<*>, TypeSpec> {
         return list.associateWith { clazz ->
-            val typeVariable = TypeVariableName("T")
             val wrapper = TypeSpec.classBuilder("${clazz.java.declaringClass.simpleName}BuilderScope")
-            val nullableListType =
-                ParameterizedTypeName.run { List::class.asTypeName().plusParameter(typeVariable) }.copy(nullable = true)
-            wrapper.addFunction(
-                FunSpec.builder("plus")
-                    .returns(nullableListType)
-                    .receiver(nullableListType)
-                    .addModifiers(KModifier.OPERATOR)
-                    .addTypeVariable(typeVariable)
-                    .addParameter("element", typeVariable)
-                    .addStatement("return this?.nonNullPlus(element) ?: listOf(element)")
-                    .build()
-            )
+            wrapper.addCommonFunctions()
             val methods = clazz.memberFunctions
                 .filter { !ignoreFunctionNames.contains(it.name) && it.arguments.size == 1 && !it.isExternal }
             val duplicates = methods.groupBy { it.name }.filterValues { it.count() >= 2 }.toMutableMap()
@@ -98,6 +86,38 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
                 .build())
             wrapper.build()
         }
+    }
+
+    private fun TypeSpec.Builder.addCommonFunctions() {
+        val typeVariable = TypeVariableName("T")
+        val mapTypeVariables = listOf(TypeVariableName("K"), TypeVariableName("V"))
+        val nullableListType =
+            ParameterizedTypeName.run { List::class.asTypeName().plusParameter(typeVariable) }.copy(nullable = true)
+        val nullableMapType = ParameterizedTypeName
+            .run { Map::class.asTypeName().parameterizedBy(*(mapTypeVariables.toTypedArray())) }
+            .copy(nullable = true)
+        val pairType = ParameterizedTypeName
+            .run { Pair::class.asTypeName().parameterizedBy(*(mapTypeVariables.toTypedArray())) }
+        addFunction(
+            FunSpec.builder("plus")
+                .returns(nullableListType)
+                .receiver(nullableListType)
+                .addModifiers(KModifier.OPERATOR)
+                .addTypeVariable(typeVariable)
+                .addParameter("element", typeVariable)
+                .addStatement("return this?.nonNullPlus(element) ?: listOf(element)")
+                .build()
+        )
+        addFunction(
+            FunSpec.builder("plus")
+                .returns(nullableMapType)
+                .receiver(nullableMapType)
+                .addModifiers(KModifier.OPERATOR)
+                .addTypeVariables(mapTypeVariables)
+                .addParameter("element", pairType)
+                .addStatement("return this?.nonNullPlus(element) ?: mapOf(element)")
+                .build()
+        )
     }
 
     private fun TypeSpec.Builder.addProperty(method: KFunction<*>) {
