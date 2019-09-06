@@ -86,7 +86,7 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
                                 val propType = (func.parameters.single {
                                     it.kind == KParameter.Kind.VALUE
                                 }.type.classifier as KClass<*>).simpleName
-                                addStatement("is ${name.capitalize()}.$propType -> builder.$name(v)")
+                                addStatement("is ${name.capitalize()}.$propType -> builder.$name(v.value)")
                             }
                             endControlFlow()
                         } else {
@@ -127,15 +127,16 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
         addProperty(prop)
 
         methods.forEach { func ->
-            val parameterType = func.parameters.single { it.kind == KParameter.Kind.VALUE }.type.classifier as KClass<*>
+            val parameterType = func.parameters.single { it.kind == KParameter.Kind.VALUE }.type
+            val parameterClass = parameterType.classifier as KClass<*>
             // data class String(val value: kotlin.String) : DuplicatedField()
             val constructor = FunSpec.constructorBuilder()
-                .addParameter("value", parameterType)
+                .addParameter("value", parameterType.asTypeName())
                 .build()
-            val clazz = TypeSpec.classBuilder(parameterType.simpleName!!)
+            val clazz = TypeSpec.classBuilder(parameterClass.simpleName!!)
                 .primaryConstructor(constructor)
                 .addProperty(
-                    PropertySpec.builder("value", parameterType)
+                    PropertySpec.builder("value", parameterType.asTypeName())
                         .initializer("value")
                         .build()
                 ).superclass(sealedClassName)
@@ -144,18 +145,18 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
 
             // fun String.toDuplicatedField() = DuplicatedField.String(this)
             val converterFunc = FunSpec.builder("to$capitalName")
-                .receiver(parameterType)
+                .receiver(parameterType.asTypeName())
                 .returns(sealedClassName)
-                .addStatement("return $capitalName.${parameterType.simpleName}(this)")
+                .addStatement("return $capitalName.${parameterClass.simpleName}(this)")
                 .build()
             addFunction(converterFunc)
 
             // operator fun DuplicatedField?.div(value: Int) = DuplicatedField.Int(value)
             val operatorFunc = FunSpec.builder("div")
                 .receiver(sealedClassName.copy(nullable = true))
-                .addParameter("value", parameterType)
+                .addParameter("value", parameterType.asTypeName())
                 .returns(sealedClassName)
-                .addStatement("return $capitalName.${parameterType.simpleName}(value)")
+                .addStatement("return $capitalName.${parameterClass.simpleName}(value)")
                 .build()
             addFunction(operatorFunc)
         }
