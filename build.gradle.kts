@@ -33,6 +33,7 @@ subprojects {
         implementation("com.google.guava:guava:28.0-jre")
         // AWS CDK
         implementation("software.amazon.awscdk", "lambda", awsCdkVersion)
+        implementation("software.amazon.awscdk", "sam", awsCdkVersion)
     }
 
     tasks.withType<KotlinCompile> {
