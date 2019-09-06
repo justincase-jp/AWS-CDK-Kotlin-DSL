@@ -7,7 +7,7 @@ import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
 import kotlin.reflect.full.declaredFunctions
 
-object AddFunctionsWrapperGenerator : ICdkDslGenerator {
+object PlusOperatorFunctionsWrapperGenerator : ICdkDslGenerator {
     private lateinit var propBuilderFile: FileSpec.Builder
     private lateinit var operatorFunFile: FileSpec.Builder
     private lateinit var packageName: String
