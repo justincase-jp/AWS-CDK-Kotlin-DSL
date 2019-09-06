@@ -16,7 +16,7 @@ val awsCdkVersion: String by project
 
 allprojects {
     group = "jp.justincase"
-    version = "$awsCdkVersion-0.4.3"
+    version = "$awsCdkVersion-0.5.0"
 
     repositories {
         mavenCentral()
@@ -33,6 +33,7 @@ subprojects {
         implementation("com.google.guava:guava:28.0-jre")
         // AWS CDK
         implementation("software.amazon.awscdk", "lambda", awsCdkVersion)
+        implementation("software.amazon.awscdk", "sam", awsCdkVersion)
     }
 
     tasks.withType<KotlinCompile> {

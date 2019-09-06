@@ -2,7 +2,6 @@ import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.*
 import java.io.File
 
-
 @KtorExperimentalAPI
 fun generateBuildFiles(
     projectVersion: String,
@@ -301,6 +300,7 @@ tasks.register<Jar>("sourcesJar") {
 
 dependencies {
     api("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
+    implementation("software.amazon.awscdk", "core", "$cdkVersion")
 }
 """
 

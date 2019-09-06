@@ -1,7 +1,6 @@
 package jp.justincase.cdkdsl.generator
 
 import com.squareup.kotlinpoet.*
-import software.amazon.awscdk.core.IResolvable
 import java.io.File
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
@@ -9,13 +8,11 @@ import kotlin.reflect.KParameter
 import kotlin.reflect.full.memberFunctions
 
 object PropClassExtensionGenerator : ICdkDslGenerator {
-    private lateinit var file: FileSpec.Builder
     private val classFiles = mutableMapOf<String, FileSpec.Builder>()
 
     private val ignoreFunctionNames = setOf("build", "toString", "hashCode", "equals")
 
     override fun run(classes: Sequence<Class<out Any>>, targetDir: File, moduleName: String) {
-        file = getFileSpecBuilder("PropClassExtensions", classes.firstOrNull()?.getTrimmedPackageName() ?: return)
 
         val classGroup = classes.filter { it.simpleName == "Builder" }
             .map { it.kotlin }
@@ -41,7 +38,6 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
         classFiles.forEach { (_, builder) ->
             builder.build().writeTo(targetDir)
         }
-        file.build().writeTo(targetDir)
     }
 
     private fun buildClasses(list: List<KClass<*>>): Map<KClass<*>, TypeSpec> {
@@ -64,11 +60,6 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
                 .filter { !ignoreFunctionNames.contains(it.name) && it.arguments.size == 1 && !it.isExternal }
             val duplicates = methods.groupBy { it.name }.filterValues { it.count() >= 2 }.toMutableMap()
             val handledDuplicates = mutableSetOf<String>()
-            if (methods.map { it.name }.toSet().size != methods.size) {
-                if (!methods.any { it.arguments.map { param -> param.type }.single() == IResolvable::class }) {
-                    return@associateWith null
-                }
-            }
             methods.forEach {
                 val name = it.name
                 val dup = duplicates[name]
@@ -90,15 +81,14 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
                         val name = method.name
                         val fieldName = name.decapitalize()
                         if (duplicates[name] != null) {
-                            addStatement("if( _$fieldName != null && ${fieldName}TypeFlag != null) {")
-                            addStatement(
-                                "if( ${fieldName}TypeFlag ) { builder.$name( _$fieldName as IResolvable) }"
-                            )
-                            addStatement(
-                                "else { builder.$name( _$name as %T }",
-                                duplicates[name]!!.single { it.arguments.single().type != IResolvable::class }.arguments.single().type
-                            )
-                            addStatement("}")
+                            beginControlFlow("when(val v = $fieldName)")
+                            duplicates[name]!!.forEach { func ->
+                                val propType = (func.parameters.single {
+                                    it.kind == KParameter.Kind.VALUE
+                                }.type.classifier as KClass<*>).simpleName
+                                addStatement("is ${name.capitalize()}.$propType -> builder.$name(v.value)")
+                            }
+                            endControlFlow()
                         } else {
                             addStatement("${fieldName}?.let{ builder.$name(it) }")
                         }
@@ -107,7 +97,7 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
                 .addStatement("return builder.build()")
                 .build())
             wrapper.build()
-        }.mapNotNull { if (it.value == null) null else it.key to it.value!! }.toMap()
+        }
     }
 
     private fun TypeSpec.Builder.addProperty(method: KFunction<*>) {
@@ -121,44 +111,57 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
     }
 
     private fun TypeSpec.Builder.addPropertyForDuplicatedMethods(name: String, methods: List<KFunction<*>>) {
-        val fieldName = name.decapitalize()
-        addProperty(
-            PropertySpec.builder(
-                "_$fieldName",
-                Any::class.asTypeName().copy(nullable = true),
-                KModifier.PRIVATE
-            ).initializer("null").mutable().build()
-        )
-        addProperty(
-            PropertySpec.builder(
-                "${fieldName}TypeFlag",
-                Boolean::class.asTypeName().copy(nullable = true),
-                KModifier.PRIVATE
-            ).initializer("false").mutable().build()
-        )
-        methods.forEach {
-            val parameterType = it.arguments.single().type
-            val nullable = parameterType.asTypeName().copy(nullable = true)
-            addProperty(
-                PropertySpec.builder(
-                    if (parameterType == IResolvable::class.java) name else "cfn${name.capitalize()}",
-                    nullable
-                )
-                    .mutable()
-                    .setter(
-                        FunSpec.setterBuilder()
-                            .addParameter("value", nullable)
-                            .addStatement("_$fieldName = value")
-                            .addStatement("${fieldName}TypeFlag = true")
-                            .build()
-                    )
-                    .getter(
-                        FunSpec.getterBuilder()
-                            .addStatement("return _$fieldName as? %T", nullable)
-                            .build()
-                    ).build()
-            )
+        val decapitalName = name.decapitalize()
+        val capitalName = name.capitalize()
+
+        // sealed class DuplicatedField
+        val sealedType = TypeSpec.classBuilder(capitalName)
+            .addModifiers(KModifier.SEALED)
+
+        // var duplicatedField: DuplicatedField? = null
+        val sealedClassName = ClassName("", capitalName)
+        val prop = PropertySpec.builder(decapitalName, sealedClassName.copy(nullable = true))
+            .initializer("null")
+            .mutable(true)
+            .build()
+        addProperty(prop)
+
+        methods.forEach { func ->
+            val parameterType = func.parameters.single { it.kind == KParameter.Kind.VALUE }.type
+            val parameterClass = parameterType.classifier as KClass<*>
+            // data class String(val value: kotlin.String) : DuplicatedField()
+            val constructor = FunSpec.constructorBuilder()
+                .addParameter("value", parameterType.asTypeName())
+                .build()
+            val clazz = TypeSpec.classBuilder(parameterClass.simpleName!!)
+                .primaryConstructor(constructor)
+                .addProperty(
+                    PropertySpec.builder("value", parameterType.asTypeName())
+                        .initializer("value")
+                        .build()
+                ).superclass(sealedClassName)
+                .build()
+            sealedType.addType(clazz)
+
+            // fun String.toDuplicatedField() = DuplicatedField.String(this)
+            val converterFunc = FunSpec.builder("to$capitalName")
+                .receiver(parameterType.asTypeName())
+                .returns(sealedClassName)
+                .addStatement("return $capitalName.${parameterClass.simpleName}(this)")
+                .build()
+            addFunction(converterFunc)
+
+            // operator fun DuplicatedField?.div(value: Int) = DuplicatedField.Int(value)
+            val operatorFunc = FunSpec.builder("div")
+                .receiver(sealedClassName.copy(nullable = true))
+                .addParameter("value", parameterType.asTypeName())
+                .returns(sealedClassName)
+                .addStatement("return $capitalName.${parameterClass.simpleName}(value)")
+                .build()
+            addFunction(operatorFunc)
         }
+
+        addType(sealedType.build())
     }
 
     private fun getClassFile(clazz: KClass<*>): FileSpec.Builder {
