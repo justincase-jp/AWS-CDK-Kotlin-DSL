@@ -31,7 +31,9 @@ object DelegationPropertyGenerator : ICdkDslGenerator {
     private fun generate(kclass: KClass<*>) {
         val constructor = kclass.constructors.single { it.javaConstructor!!.isResourceTypeConstructor() }
         val parameterClass = constructor.javaConstructor!!.parameters.single { it.isPropertyArg() }.type
-        val delegateType = TypeSpec.classBuilder("${kclass.simpleName}DelegatedProperty")
+        val delegateTypeName = "${kclass.simpleName}DelegatedProperty"
+        val delegateTypeClassName = ClassName("", delegateTypeName)
+        val delegateType = TypeSpec.classBuilder(delegateTypeName)
         delegateType.apply {
             primaryConstructor(
                 FunSpec.constructorBuilder()
@@ -61,7 +63,20 @@ object DelegationPropertyGenerator : ICdkDslGenerator {
                     .build()
             )
         }
+        val builderClassName = getBuilderClassName(kclass.java, parameterClass)
+        val builderFunc = FunSpec.builder(kclass.simpleName!!)
+            .receiver(Construct::class)
+            .returns(delegateTypeClassName)
+            .addParameter(
+                "configureProps",
+                LambdaTypeName.get(
+                    receiver = builderClassName,
+                    returnType = UNIT
+                )
+            )
+            .addStatement("return %T(this, $builderClassName().also(configureProps).build())", delegateTypeClassName)
         file.addType(delegateType.build())
+        file.addFunction(builderFunc.build())
     }
 
     private tailrec fun Class<*>.isResourceSubClass(): Boolean {
@@ -87,4 +102,20 @@ object DelegationPropertyGenerator : ICdkDslGenerator {
                 && !type.isPrimitive
                 && type.declaredClasses.any { it.simpleName == "Builder" }
 
+    private fun getBuilderClassName(
+        clazz: Class<*>,
+        propClass: Class<*>
+    ): ClassName {
+        return if (propClass.declaringClass != null) {
+            ClassName(
+                clazz.getDslPackageName(),
+                "${propClass.getDslPackageName()}.${propClass.declaringClass.simpleName}.${propClass.simpleName}BuilderScope"
+            )
+        } else {
+            ClassName(
+                clazz.getDslPackageName(),
+                "${propClass.simpleName}BuilderScope"
+            )
+        }
+    }
 }
