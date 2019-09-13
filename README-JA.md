@@ -1,7 +1,7 @@
 # AWS-CDK-Kotlin-DSL  
 [English](README.md)  
 [![CircleCI](https://circleci.com/gh/justincase-jp/AWS-CDK-Kotlin-DSL/tree/master.svg?style=svg)](https://circleci.com/gh/justincase-jp/AWS-CDK-Kotlin-DSL/tree/master)
-[![Download](https://api.bintray.com/packages/justincase/aws-cdk-kotlin-dsl/core/images/download.svg) ](https://bintray.com/justincase/aws-cdk-kotlin-dsl/core/_latestVersion)
+[![Download](https://api.bintray.com/packages/justincase/aws-cdk-kotlin-dsl/core/images/download.svg) ](https://bintray.com/justincase/aws-cdk-kotlin-dsl/core/_latestVersion)  
 <a href='https://bintray.com/justincase/aws-cdk-kotlin-dsl/core?source=watch' alt='Get automatic notifications about new "core" versions'><img src='https://www.bintray.com/docs/images/bintray_badge_color.png'></a>
   
 このライブラリは、[AWS CDK Java](https://mvnrepository.com/artifact/software.amazon.awscdk)のラッパーライブラリです。  
@@ -104,7 +104,7 @@ CDKではいくつかのプロパティに`Union型`というJava/Kotlinに無�
 そのため、元となるクラスとsealed classへの変換処理が必要になります。  
 ここでは、`CfnBucket`クラスを例に該当プロパティの利用方法を見ていきましょう。
 
-```
+```kotlin
 CfnBucket("MyCfnBucket") {
     bucketName = "cfn-bucket"
 }
