@@ -74,7 +74,7 @@ object DelegationPropertyGenerator : ICdkDslGenerator {
                     returnType = UNIT
                 )
             )
-            .addStatement("return %T(this, $builderClassName().also(configureProps).build())", delegateTypeClassName)
+            .addStatement("return $delegateTypeName(this, $builderClassName().also(configureProps).build())")
         file.addType(delegateType.build())
         file.addFunction(builderFunc.build())
     }
