@@ -59,12 +59,12 @@ object ConstructorFunctionGenerator : ICdkDslGenerator {
         ): ClassName {
             return if (propClass.declaringClass != null) {
                 ClassName(
-                    "jp.justincase.cdkdsl.${clazz.getTrimmedPackageName()}",
-                    "jp.justincase.cdkdsl.${propClass.getTrimmedPackageName()}.${propClass.declaringClass.simpleName}.${propClass.simpleName}BuilderScope"
+                    clazz.getDslPackageName(),
+                    "${propClass.getDslPackageName()}.${propClass.declaringClass.simpleName}.${propClass.simpleName}BuilderScope"
                 )
             } else {
                 ClassName(
-                    "jp.justincase.cdkdsl.${clazz.getTrimmedPackageName()}",
+                    clazz.getDslPackageName(),
                     "${propClass.simpleName}BuilderScope"
                 )
             }
