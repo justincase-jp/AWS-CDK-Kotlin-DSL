@@ -40,3 +40,5 @@ fun getFileSpecBuilder(fileName: String, packageName: String): FileSpec.Builder 
 
 fun Class<*>.getTrimmedPackageName() =
     `package`.name.split('.').drop(3).joinToString(".")
+
+fun Class<*>.getDslPackageName() = "jp.justincase.cdkdsl.${getTrimmedPackageName()}"
