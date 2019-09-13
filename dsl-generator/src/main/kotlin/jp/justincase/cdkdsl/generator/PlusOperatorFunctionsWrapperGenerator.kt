@@ -42,7 +42,7 @@ object PlusOperatorFunctionsWrapperGenerator : ICdkDslGenerator {
                         func.parameters.filter { it.kind == KParameter.Kind.VALUE }[1].type.classifier as KClass<*>
 
                     val builderScope = ClassName(
-                        "jp.justincase.cdkdsl.${propClass.java.getTrimmedPackageName()}",
+                        propClass.java.getDslPackageName(),
                         "${propClass.simpleName}BuilderScope"
                     )
                     val lambdaType = LambdaTypeName.get(
