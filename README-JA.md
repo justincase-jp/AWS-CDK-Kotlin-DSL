@@ -19,7 +19,6 @@ val cdkDslVersion: String by project
 
 repositories {
     mavenCentral()
-    jcenter()
     maven {
         url = uri("https://dl.bintray.com/justincase/aws-cdk-kotlin-dsl")
     }
