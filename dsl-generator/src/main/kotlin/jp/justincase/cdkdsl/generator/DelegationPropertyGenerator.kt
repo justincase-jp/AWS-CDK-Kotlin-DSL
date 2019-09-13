@@ -7,6 +7,7 @@ import software.amazon.awscdk.core.IResource
 import software.amazon.awscdk.core.Resource
 import java.io.File
 import java.lang.reflect.Constructor
+import java.lang.reflect.Modifier
 import java.lang.reflect.Parameter
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
@@ -19,7 +20,7 @@ object DelegationPropertyGenerator : ICdkDslGenerator {
         file = getFileSpecBuilder("DelegatedProperty", classes.first().getTrimmedPackageName())
 
         classes
-            .filter { !it.isAnnotation && !it.isEnum && !it.isAnonymousClass }
+            .filter { !it.isAnnotation && !it.isEnum && !it.isAnonymousClass && (it.modifiers and Modifier.ABSTRACT) == 0 }
             .filter { clazz -> clazz.isResourceSubClass() && clazz.constructors.singleOrNull { it.isResourceTypeConstructor() } != null }
             .filter { it.declaringClass == null }
             .map { it.kotlin }

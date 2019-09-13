@@ -68,16 +68,18 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
                     methods.forEach { method ->
                         val name = method.name
                         val fieldName = name.decapitalize()
-                        if (duplicates[name] != null && !handledDuplicates.contains(name)) {
-                            beginControlFlow("when(val v = $fieldName)")
-                            duplicates[name]!!.forEach { func ->
-                                val propType = (func.parameters.single {
-                                    it.kind == KParameter.Kind.VALUE
-                                }.type.classifier as KClass<*>).simpleName
-                                addStatement("is ${name.capitalize()}.$propType -> builder.$name(v.value)")
+                        if (duplicates[name] != null) {
+                            if (!handledDuplicates.contains(name)) {
+                                beginControlFlow("when(val v = $fieldName)")
+                                duplicates[name]!!.forEach { func ->
+                                    val propType = (func.parameters.single {
+                                        it.kind == KParameter.Kind.VALUE
+                                    }.type.classifier as KClass<*>).simpleName
+                                    addStatement("is ${name.capitalize()}.$propType -> builder.$name(v.value)")
+                                }
+                                endControlFlow()
+                                handledDuplicates += name
                             }
-                            endControlFlow()
-                            handledDuplicates += name
                         } else {
                             addStatement("${fieldName}?.let{ builder.$name(it) }")
                         }
