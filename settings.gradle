@@ -1,3 +1,5 @@
 rootProject.name = 'aws-cdk-kotlin-dsl'
 include 'dsl-generator'
 include 'buildSrc'
+include 'example'
+
