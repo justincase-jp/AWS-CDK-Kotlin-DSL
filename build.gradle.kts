@@ -8,7 +8,7 @@ plugins {
 }
 
 tasks.getByName<Wrapper>("wrapper") {
-    gradleVersion = "5.6"
+    gradleVersion = "5.6.2"
 }
 
 val kotlinVersion: String by project
@@ -16,7 +16,7 @@ val awsCdkVersion: String by project
 
 allprojects {
     group = "jp.justincase"
-    version = "$awsCdkVersion-0.5.1"
+    version = "$awsCdkVersion-0.5.2"
 
     repositories {
         mavenCentral()
