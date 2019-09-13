@@ -173,6 +173,7 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
 
             // operator fun DuplicatedField?.div(value: Int) = DuplicatedField.Int(value)
             val operatorFunc = FunSpec.builder("div")
+                .addModifiers(KModifier.OPERATOR)
                 .receiver(sealedClassName.copy(nullable = true))
                 .addParameter("value", parameterType.asTypeName())
                 .returns(sealedClassName)
