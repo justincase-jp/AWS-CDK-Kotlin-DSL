@@ -12,7 +12,8 @@ import java.io.File
 val generators = mutableListOf(
     ConstructorFunctionGenerator,
     PropClassExtensionGenerator,
-    PlusOperatorFunctionsWrapperGenerator
+    PlusOperatorFunctionsWrapperGenerator,
+    DelegationPropertyGenerator
 )
 
 fun main(args: Array<String>) {
