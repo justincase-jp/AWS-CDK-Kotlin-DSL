@@ -32,7 +32,7 @@ object DelegationPropertyGenerator : ICdkDslGenerator {
         val constructor = kclass.constructors.single { it.javaConstructor!!.isResourceTypeConstructor() }
         val parameterClass = constructor.javaConstructor!!.parameters.single { it.isPropertyArg() }.type
         val delegateTypeName = "${kclass.simpleName}DelegatedProperty"
-        val delegateTypeClassName = ClassName("", delegateTypeName)
+        val delegateTypeClassName = ClassName(kclass.java.getDslPackageName(), delegateTypeName)
         val delegateType = TypeSpec.classBuilder(delegateTypeName)
         delegateType.apply {
             primaryConstructor(
