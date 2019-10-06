@@ -1,4 +1,4 @@
-# AWS-CDK-Kotlin-DSL
+# AWS CDK Kotlin DSL
 [![CircleCI](https://circleci.com/gh/justincase-jp/AWS-CDK-Kotlin-DSL/tree/master.svg?style=shield)](
   https://circleci.com/gh/justincase-jp/AWS-CDK-Kotlin-DSL/tree/master
 )
@@ -23,7 +23,7 @@ repositories {
 }
 
 dependencies {
-  implementation("jp.justincase.aws-cdk-kotlin-dsl", "$moduleName", "$cdk_version-$dsl_version")
+  implementation("jp.justincase.aws-cdk-kotlin-dsl", "$cdk_module", "$cdk_version-$dsl_version")
 }
 ```
 
