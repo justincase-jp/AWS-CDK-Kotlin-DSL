@@ -1,12 +1,20 @@
-# AWS-CDK-Kotlin-DSL  
-[English](README.md)  
-[![CircleCI](https://circleci.com/gh/justincase-jp/AWS-CDK-Kotlin-DSL/tree/master.svg?style=svg)](https://circleci.com/gh/justincase-jp/AWS-CDK-Kotlin-DSL/tree/master)
-[![Download](https://api.bintray.com/packages/justincase/aws-cdk-kotlin-dsl/core/images/download.svg) ](https://bintray.com/justincase/aws-cdk-kotlin-dsl/core/_latestVersion)  
-<a href='https://bintray.com/justincase/aws-cdk-kotlin-dsl/core?source=watch' alt='Get automatic notifications about new "core" versions'><img src='https://www.bintray.com/docs/images/bintray_badge_color.png'></a>
-  
+# AWS-CDK-Kotlin-DSL
+[![CircleCI](https://circleci.com/gh/justincase-jp/AWS-CDK-Kotlin-DSL/tree/master.svg?style=shield)](
+  https://circleci.com/gh/justincase-jp/AWS-CDK-Kotlin-DSL/tree/master
+)
+[![Download](https://api.bintray.com/packages/justincase/aws-cdk-kotlin-dsl/core/images/download.svg)](
+  https://bintray.com/justincase/aws-cdk-kotlin-dsl/core/_latestVersion
+)
+
 このライブラリは、[AWS CDK Java](https://mvnrepository.com/artifact/software.amazon.awscdk)のラッパーライブラリです。  
 AWS CDKの各モジュールに対してヘルパー関数・ライブラリ群が自動生成され、Kotlin DSLでインフラ設定が書けるようになります。  
 Circle CIにより毎日、日本標準時で午後2時にCDKのアップデートのチェックが行われ、アップデートがあった場合はコード生成・デプロイが行われます。  
+
+<a href='https://bintray.com/justincase/aws-cdk-kotlin-dsl/core?source=watch' alt='Get automatic notifications about new "core" versions'>
+  <img src='https://www.bintray.com/docs/images/bintray_badge_color.png' height='53' width='62'>
+</a>
+
+[**English**](README.md)
 
 
 # 使用方法
@@ -81,7 +89,7 @@ CDK Kotlin DSLのスコープ内では、nullableなListとMapに対して+演�
 Bucket("MyFirstBucket") {
     versioned = true
     encryption = BucketEncryption.S3_MANAGED
-    metrics += BucketMetrics { 
+    metrics += BucketMetrics {
         id = "example"
         tagFilters += "a" to "b"
     }
