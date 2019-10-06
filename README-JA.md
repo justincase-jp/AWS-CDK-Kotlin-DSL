@@ -36,7 +36,7 @@ AWS-CDK-Kotlin-DSLの各モジュールは、[AWS CDK Java](https://mvnrepositor
 
 
 # 使用方法
-完全な例は [`example`](example) ディレクトリにあります。
+完全な例は [`example`](example) プロジェクトにあります。
 
 ## チュートリアル
 以下の内容は、[AWS CDKのチュートリアル](https://docs.aws.amazon.com/ja_jp/cdk/latest/guide/getting_started.html#hello_world_tutorial)の様に、S3 Bucketを追加してみます。

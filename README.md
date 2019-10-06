@@ -29,4 +29,4 @@ dependencies {
 
 
 ## Usage
-Please see the [`example`](example) directory.
+Please refer to the [`example`](example) project.
