@@ -11,6 +11,11 @@ tasks {
   compileKotlin {
     kotlinOptions.jvmTarget = JavaVersion.VERSION_1_8.toString()
   }
+
+  "run" {
+    // Allow skipping code execution conditionally
+    outputs.dir("cdk.out")
+  }
 }
 
 application {
