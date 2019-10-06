@@ -1,11 +1,21 @@
 plugins {
   kotlin("jvm") version "1.3.50"
+  application
 }
 
-tasks.compileKotlin {
-  kotlinOptions.jvmTarget = JavaVersion.VERSION_1_8.toString()
+tasks {
+  named<Wrapper>("wrapper") {
+    gradleVersion = "5.6.2"
+  }
+
+  compileKotlin {
+    kotlinOptions.jvmTarget = JavaVersion.VERSION_1_8.toString()
+  }
 }
 
+application {
+  mainClassName = "jp.justincase.cdkdsl.example.Main"
+}
 
 repositories {
   jcenter()
@@ -14,5 +24,5 @@ repositories {
 
 dependencies {
   implementation(kotlin("stdlib"))
-  implementation("jp.justincase.aws-cdk-kotlin-dsl", "s3", "1.8.0.DEVPREVIEW-0.5.2")
+  implementation("jp.justincase.aws-cdk-kotlin-dsl", "s3", "1.11.0.DEVPREVIEW-0.5.2")
 }
