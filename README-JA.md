@@ -17,28 +17,26 @@ Circle CIにより毎日、日本標準時で午後2時にCDKのアップデー�
 [**English**](README.md)
 
 
-# 使用方法
-完全な例は[example](example)モジュールに存在します。
 ## インストール
-**Gradle Kotlin DSL**
+Gradle Kotlin DSL
 
 ```kotlin
-val cdkDslVersion: String by project
-
 repositories {
-    mavenCentral()
-    maven {
-        url = uri("https://dl.bintray.com/justincase/aws-cdk-kotlin-dsl")
-    }
+  jcenter()
+  maven(url = "https://dl.bintray.com/justincase/aws-cdk-kotlin-dsl")
 }
 
 dependencies {
-    implementation("jp.justincase.aws-cdk-kotlin-dsl", "$moduleName", cdkDslVersion)
+  implementation("jp.justincase.aws-cdk-kotlin-dsl", "$moduleName", "$cdk_version-$dsl_version")
 }
 ```
 
 AWS-CDK-Kotlin-DSLの各モジュールは、[AWS CDK Java](https://mvnrepository.com/artifact/software.amazon.awscdk)の各モジュールに1:1で対応しています。  
 "$moduleName"の部分に適宜必要なモジュール名を補完してください。
+
+
+# 使用方法
+完全な例は [`example`](example) ディレクトリにあります。
 
 ## チュートリアル
 以下の内容は、[AWS CDKのチュートリアル](https://docs.aws.amazon.com/ja_jp/cdk/latest/guide/getting_started.html#hello_world_tutorial)の様に、S3 Bucketを追加してみます。

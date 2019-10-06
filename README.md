@@ -11,3 +11,22 @@
 </a>
 
 [**日本語**](README-JA.md)
+
+
+## Installation
+Gradle Kotlin DSL
+
+```kotlin
+repositories {
+  jcenter()
+  maven(url = "https://dl.bintray.com/justincase/aws-cdk-kotlin-dsl")
+}
+
+dependencies {
+  implementation("jp.justincase.aws-cdk-kotlin-dsl", "$moduleName", "$cdk_version-$dsl_version")
+}
+```
+
+
+## Usage
+Please see the [`example`](example) directory.

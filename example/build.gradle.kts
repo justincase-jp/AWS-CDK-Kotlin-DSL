@@ -1,26 +1,18 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 plugins {
-    kotlin("jvm")
+  kotlin("jvm") version "1.3.50"
 }
 
-group = "jp.justincase"
-version = "1.8.0.DEVPREVIEW-0.5.2"
+tasks.compileKotlin {
+  kotlinOptions.jvmTarget = JavaVersion.VERSION_1_8.toString()
+}
+
 
 repositories {
-    mavenCentral()
-    jcenter()
-    maven {
-        url = uri("https://dl.bintray.com/justincase/aws-cdk-kotlin-dsl")
-    }
+  jcenter()
+  maven(url = "https://dl.bintray.com/justincase/aws-cdk-kotlin-dsl")
 }
 
 dependencies {
-    implementation(kotlin("stdlib-jdk8"))
-
-    implementation("jp.justincase.aws-cdk-kotlin-dsl", "s3", version as String)
-}
-
-tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "1.8"
+  implementation(kotlin("stdlib"))
+  implementation("jp.justincase.aws-cdk-kotlin-dsl", "s3", "1.8.0.DEVPREVIEW-0.5.2")
 }
