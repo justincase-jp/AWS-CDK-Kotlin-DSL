@@ -11,12 +11,19 @@ tasks.getByName<Wrapper>("wrapper") {
     gradleVersion = "5.6.2"
 }
 
+fun String.removePrefixOrNull(prefix: String): String? =
+    takeIf { it.startsWith(prefix) }?.removePrefix(prefix)
+
 val kotlinVersion: String by project
 val awsCdkVersion: String by project
+val dslVersion =
+    System.getenv("CIRCLE_TAG")?.removePrefixOrNull("v")
+        ?: System.getenv("CIRCLE_BRANCH")?.removePrefixOrNull("release/")
+        ?: "unspecified"
 
 allprojects {
     group = "jp.justincase"
-    version = "$awsCdkVersion-0.5.2"
+    version = "$awsCdkVersion-$dslVersion"
 
     repositories {
         mavenCentral()

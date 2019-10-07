@@ -43,6 +43,7 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
     private fun buildClasses(list: List<KClass<*>>): Map<KClass<*>, TypeSpec> {
         return list.associateWith { clazz ->
             val wrapper = TypeSpec.classBuilder("${clazz.java.declaringClass.simpleName}BuilderScope")
+            wrapper.addModifiers(KModifier.OPEN)
             wrapper.addCommonFunctions()
             val methods = clazz.memberFunctions
                 .filter { !ignoreFunctionNames.contains(it.name) && it.arguments.size == 1 && !it.isExternal }

@@ -20,7 +20,11 @@ jobs:
       - image: gradle:5.6.0-jdk8
     steps:
       - checkout
-      - run: gradle -S generateAndUploadForUpdatedCdk
+      - run: |
+          if [ -z ${CIRCLE_TAG+x} ]; then
+            git ls-remote --exit-code origin refs/tags/v"${CIRCLE_BRANCH#release/}"
+          fi
+          gradle -S generateAndUploadForUpdatedCdk
 
   deployForUpdate:
     docker:
@@ -29,22 +33,24 @@ jobs:
       - checkout
       - run: gradle -S uploadToBintrayForAllModule
 
+
 workflows:
   version: 2
-  untagged-build:
+
+  untagged:
     jobs:
       - build
       - test
-  check-cdk-update-and-deploy:
+  current:
     jobs:
       - deployForCdk
     triggers:
       - schedule:
           cron: '0 5 * * *'
-          filters: { branches: { only: master } }
-  deploy-all:
+          filters: { branches: { only: '/^release\/.*/' } }
+  all:
     jobs:
       - deployForUpdate:
           filters:
             tags: { only: '/^v.*/' }
-            branches: {ignore: '/^.*/'}
+            branches: { ignore: '/^.*/' }
