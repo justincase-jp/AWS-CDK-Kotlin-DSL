@@ -27,7 +27,7 @@ repositories {
 }
 
 dependencies {
-  implementation("jp.justincase.aws-cdk-kotlin-dsl", "$cdk_module", "$cdk_version-$dsl_version")
+  implementation("jp.justincase.aws-cdk-kotlin-dsl", cdk_module, "$cdk_version-$dsl_version")
 }
 ```
 
