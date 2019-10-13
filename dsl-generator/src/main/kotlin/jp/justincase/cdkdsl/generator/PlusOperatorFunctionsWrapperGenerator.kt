@@ -48,7 +48,7 @@ object PlusOperatorFunctionsWrapperGenerator : ICdkDslGenerator {
                     )
 
                     (if (!wrappedPropClasses.contains(propClass)) {
-                        createPropBuilder(propClass, lambdaType).apply { wrappedPropClasses.add(clazz) }
+                        createPropBuilder(propClass, lambdaType).apply { wrappedPropClasses.add(propClass) }
                     } else null) to createPlusAssign(clazz, lambdaType, builderScope, func)
                 }
             }.collect {
