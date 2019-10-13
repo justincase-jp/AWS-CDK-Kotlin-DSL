@@ -66,38 +66,38 @@ object PlusOperatorFunctionsWrapperGenerator : ICdkDslGenerator {
     private fun createPropBuilder(
         propClass: KClass<*>,
         lambdaType: LambdaTypeName
-    ): FunSpec = FunSpec.builder(propClass.simpleName!!.decapitalize())
-        .addParameter("id", String::class)
-        .addParameter(
+    ): FunSpec = FunSpec.builder(propClass.simpleName!!.decapitalize()).apply {
+        addParameter("id", String::class)
+        addParameter(
             "configuration",
             lambdaType
         )
-        .addStatement("return id.to(configuration)")
-        .build()
+        addStatement("return id.to(configuration)")
+    }.build()
 
     private fun createPlusAssign(
         clazz: KClass<out Any>,
         lambdaType: LambdaTypeName,
         builderScope: ClassName,
         func: KFunction<*>
-    ): FunSpec = FunSpec.builder("plusAssign")
-        .addAnnotation(
+    ): FunSpec = FunSpec.builder("plusAssign").apply {
+        addAnnotation(
             AnnotationSpec.builder(JvmName::class).addMember(
                 "%S",
                 "plugAssign${builderScope.simpleName}"
             ).build()
         )
-        .addModifiers(KModifier.OPERATOR)
-        .receiver(clazz)
-        .returns(UNIT)
-        .addParameter("value", ParameterizedTypeName.run {
+        addModifiers(KModifier.OPERATOR)
+        receiver(clazz)
+        returns(UNIT)
+        addParameter("value", ParameterizedTypeName.run {
             Pair::class.asTypeName().parameterizedBy(
                 String::class.asTypeName(), lambdaType
             )
         })
-        .addStatement(
+        addStatement(
             "${func.name}(value.first, %T().also(value.second).build())",
             builderScope
         )
-        .build()
+    }.build()
 }
