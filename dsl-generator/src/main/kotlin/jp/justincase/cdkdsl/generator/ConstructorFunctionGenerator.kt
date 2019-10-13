@@ -1,6 +1,15 @@
 package jp.justincase.cdkdsl.generator
 
-import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.FunSpec
+import com.squareup.kotlinpoet.LambdaTypeName
+import com.squareup.kotlinpoet.UNIT
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import software.amazon.awscdk.core.Construct
 import java.io.File
 import java.lang.reflect.Constructor
@@ -8,10 +17,8 @@ import java.lang.reflect.Modifier
 import java.lang.reflect.Parameter
 
 object ConstructorFunctionGenerator : ICdkDslGenerator {
-    private lateinit var file: FileSpec.Builder
-
-    override fun run(classes: Sequence<Class<out Any>>, targetDir: File, moduleName: String) {
-        file = getFileSpecBuilder("ConstructorFunctions", classes.firstOrNull()?.getTrimmedPackageName() ?: return)
+    override suspend fun run(classes: Flow<Class<out Any>>, targetDir: File, moduleName: String, packageName: String) {
+        val file = getFileSpecBuilder("ConstructorFunctions", packageName)
         /*
         Generation target:
         ・have specific constructor parameter
@@ -19,7 +26,7 @@ object ConstructorFunctionGenerator : ICdkDslGenerator {
          */
         classes
             .filter { !it.isAnnotation && !it.isEnum && !it.isAnonymousClass }
-            .forEach { clazz ->
+            .map { clazz ->
                 val generator = when {
                     (clazz.modifiers and (Modifier.ABSTRACT or Modifier.INTERFACE)) != 0 -> InternalGenerator.Interface
                     clazz.constructors.singleOrNull { it.isResourceTypeConstructor() } != null -> InternalGenerator.WithId
@@ -27,8 +34,12 @@ object ConstructorFunctionGenerator : ICdkDslGenerator {
                     else -> null
                 }
                 generator?.generate(clazz)
+            }.collect {
+                it?.apply { file.addFunction(this) }
             }
-        file.build().writeTo(targetDir)
+        withContext(Dispatchers.IO) {
+            file.build().writeTo(targetDir)
+        }
     }
 
     private fun isPropertyArg(parameter: Parameter): Boolean =
@@ -49,7 +60,7 @@ object ConstructorFunctionGenerator : ICdkDslGenerator {
 
     @Suppress("unused")
     private sealed class InternalGenerator {
-        abstract fun generate(clazz: Class<*>)
+        abstract suspend fun generate(clazz: Class<*>): FunSpec?
 
         fun getPropClass(constructor: Constructor<*>) = constructor.parameters.single(::isPropertyArg).type!!
 
@@ -71,56 +82,31 @@ object ConstructorFunctionGenerator : ICdkDslGenerator {
         }
 
         object WithId : InternalGenerator() {
-            override fun generate(clazz: Class<*>) {
-                clazz.constructors.singleOrNull { it.isResourceTypeConstructor() }?.let { constructor ->
+            override suspend fun generate(clazz: Class<*>) = clazz.constructors
+                .singleOrNull { it.isResourceTypeConstructor() }
+                ?.let { constructor ->
                     val propClass = getPropClass(constructor)
                     val builderClass = getBuilderClassName(clazz, propClass)
-                    file.addFunction(
-                        FunSpec.builder(clazz.simpleName).apply {
-                            returns(clazz)
-                            receiver(Construct::class)
-                            addParameter("id", String::class)
-                            addParameter(
-                                "configureProps",
-                                LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
-                            )
-                            addStatement("return %T(this, id, %T().also(configureProps).build())", clazz, builderClass)
-                        }.build()
-                    )
+                    FunSpec.builder(clazz.simpleName).apply {
+                        returns(clazz)
+                        receiver(Construct::class)
+                        addParameter("id", String::class)
+                        addParameter(
+                            "configureProps",
+                            LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
+                        )
+                        addStatement("return %T(this, id, %T().also(configureProps).build())", clazz, builderClass)
+                    }.build()
                 }
-            }
         }
 
         object OnlyProperty : InternalGenerator() {
 
-            override fun generate(clazz: Class<*>) {
-                clazz.constructors.singleOrNull { it.isPropertyOnlyConstructor() }?.let { constructor ->
+            override suspend fun generate(clazz: Class<*>) = clazz.constructors
+                .singleOrNull { it.isPropertyOnlyConstructor() }
+                ?.let { constructor ->
                     val propClass = getPropClass(constructor)
                     val builderClass = getBuilderClassName(clazz, propClass)
-                    file.addFunction(
-                        FunSpec.builder(clazz.simpleName).apply {
-                            returns(clazz)
-                            receiver(Construct::class)
-                            addParameter(
-                                "configureProps",
-                                LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
-                            )
-                            addStatement("return %T(%T().also(configureProps).build())", clazz, builderClass)
-                        }.build()
-                    )
-                }
-            }
-        }
-
-        object Interface : InternalGenerator() {
-
-            private fun Class<*>.haveBuilderClass() = declaredClasses.any { it.simpleName == "Builder" }
-
-            override fun generate(clazz: Class<*>) {
-                if (!clazz.haveBuilderClass()) return
-                val builderClass = getBuilderClassName(clazz, clazz)
-
-                file.addFunction(
                     FunSpec.builder(clazz.simpleName).apply {
                         returns(clazz)
                         receiver(Construct::class)
@@ -128,9 +114,27 @@ object ConstructorFunctionGenerator : ICdkDslGenerator {
                             "configureProps",
                             LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
                         )
-                        addStatement("return %T().also(configureProps).build()", builderClass)
+                        addStatement("return %T(%T().also(configureProps).build())", clazz, builderClass)
                     }.build()
-                )
+                }
+        }
+
+        object Interface : InternalGenerator() {
+
+            private fun Class<*>.haveBuilderClass() = declaredClasses.any { it.simpleName == "Builder" }
+
+            override suspend fun generate(clazz: Class<*>): FunSpec? {
+                if (!clazz.haveBuilderClass()) return null
+                val builderClass = getBuilderClassName(clazz, clazz)
+                return FunSpec.builder(clazz.simpleName).apply {
+                    returns(clazz)
+                    receiver(Construct::class)
+                    addParameter(
+                        "configureProps",
+                        LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
+                    )
+                    addStatement("return %T().also(configureProps).build()", builderClass)
+                }.build()
             }
         }
     }

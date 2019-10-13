@@ -5,7 +5,9 @@ import io.ktor.client.response.HttpResponse
 import io.ktor.http.HttpStatusCode
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -30,40 +32,40 @@ private val client = HttpClient(CIO)
 
 @KtorExperimentalAPI
 fun getCdkUpdatedVersions(): Map<String, List<Version>> = runBlocking {
-    val latestGeneratedCdkVersions = cdkModuleList.associateWith { module ->
-        val dslMavenMetadataUrl =
-            "https://dl.bintray.com/justincase/aws-cdk-kotlin-dsl/jp/justincase/aws-cdk-kotlin-dsl/$module/maven-metadata.xml"
-        async(context = Dispatchers.Default) {
+    val latestGeneratedCdkVersions = cdkModuleList.asFlow()
+        .map { module ->
+            val dslMavenMetadataUrl =
+                "https://dl.bintray.com/justincase/aws-cdk-kotlin-dsl/jp/justincase/aws-cdk-kotlin-dsl/$module/maven-metadata.xml"
             val response = withContext(Dispatchers.IO) {
                 client.get<HttpResponse>(dslMavenMetadataUrl)
             }
             if (response.status != HttpStatusCode.OK) {
-                return@async leastVersion
+                return@map module to leastVersion
             }
             val doc = withContext(Dispatchers.IO) {
                 DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(response.content.toInputStream())
             }
             val lastVersionString = doc.getElementsByTagName("latest").item(0).textContent.split('-')[0]
-            Version(lastVersionString)
-        }
-    }.mapValues { it.value.await() }
+            module to Version(lastVersionString)
+        }.toList().toMap()
     latestVersionMap = latestGeneratedCdkVersions.toMutableMap()
-    val cdkVersions = cdkModuleList.associateWith { module ->
-        val cdkMavenMetadataUrl = "https://repo1.maven.org/maven2/software/amazon/awscdk/$module/maven-metadata.xml"
-        async(context = Dispatchers.Default) {
+    val cdkVersions = cdkModuleList.asFlow()
+        .map { module ->
+            val cdkMavenMetadataUrl = "https://repo1.maven.org/maven2/software/amazon/awscdk/$module/maven-metadata.xml"
             val response = withContext(Dispatchers.IO) {
                 client.get<HttpResponse>(cdkMavenMetadataUrl)
             }
             val doc = withContext(Dispatchers.IO) {
                 DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(response.content.toInputStream())
             }
-            doc.getElementsByTagName("versions").item(0).childNodes.asList().filter { it.nodeName == "version" }
+            module to doc.getElementsByTagName("versions").item(0).childNodes.asList()
+                .filter { it.nodeName == "version" }
                 .map { Version(it.textContent) }
-        }
-    }.mapValues { pair -> pair.value.await() }
+        }.toList().toMap()
     latestCdkVersionMap = cdkVersions.mapValues { pair -> pair.value.last() }
-    unhandledCdkVersionMap =
-        cdkVersions.mapValues { pair -> pair.value.filter { it > latestGeneratedCdkVersions.getValue(pair.key) } }
+    unhandledCdkVersionMap = cdkVersions.mapValues { pair ->
+        pair.value.filter { it > latestGeneratedCdkVersions.getValue(pair.key) }
+    }
     unhandledCdkVersionMap
 }
 

@@ -3,6 +3,8 @@ package jp.justincase.cdkdsl.generator
 import com.google.common.reflect.ClassPath
 import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.FileSpec
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.runBlocking
 import java.io.File
 
 /**
@@ -21,19 +23,23 @@ fun main(args: Array<String>) {
 }
 
 fun main(targetDir: File, moduleName: String) {
-    val cdkClasses = ClassPath.from(ClassLoader.getSystemClassLoader()).allClasses.asSequence()
+    val cdkClasses = ClassPath.from(ClassLoader.getSystemClassLoader()).allClasses.asFlow()
         .filter { it.packageName.startsWith("software.amazon.awscdk") }
         .map { it.load() }
         .filter { File(it.protectionDomain.codeSource.location.toURI()).name.split('-').dropLast(1).joinToString("-") == moduleName }
 
     val srcDir = File(targetDir, "src/main/kotlin").also { if (!it.exists()) it.mkdirs() }
-    generators.forEach {
-        it.run(cdkClasses, srcDir, moduleName)
+
+    runBlocking {
+        val pack = cdkClasses.firstOrNull()?.getDslPackageName() ?: return@runBlocking
+        generators.asFlow().collect {
+            it.run(cdkClasses, srcDir, moduleName, pack)
+        }
     }
 }
 
 fun getFileSpecBuilder(fileName: String, packageName: String): FileSpec.Builder =
-    FileSpec.builder("jp.justincase.cdkdsl.$packageName", fileName).apply {
+    FileSpec.builder(packageName, fileName).apply {
         addAnnotation(AnnotationSpec.builder(Suppress::class).addMember("%S", "FunctionName, Unused").build())
     }
 
@@ -41,3 +47,5 @@ fun Class<*>.getTrimmedPackageName() =
     `package`.name.split('.').drop(3).joinToString(".")
 
 fun Class<*>.getDslPackageName() = "jp.justincase.cdkdsl.${getTrimmedPackageName()}"
+
+suspend fun <T> Flow<T>.firstOrNull(): T? = runCatching { first() }.getOrNull()

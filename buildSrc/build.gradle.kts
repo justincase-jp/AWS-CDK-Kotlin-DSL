@@ -8,12 +8,13 @@ plugins {
 
 repositories {
     mavenCentral()
+    maven(url = "https://kotlin.bintray.com/ktor")
 }
 
 dependencies {
     implementation(kotlin("stdlib-jdk8", KotlinVersion.CURRENT.toString()))
-    implementation("io.ktor:ktor-client-cio:1.2.3")
-    implementation("io.ktor:ktor-client-auth-jvm:1.2.3")
+    implementation("io.ktor:ktor-client-cio:1.2.5")
+    implementation("io.ktor:ktor-client-auth-jvm:1.2.5")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.9.+")
 }
 
