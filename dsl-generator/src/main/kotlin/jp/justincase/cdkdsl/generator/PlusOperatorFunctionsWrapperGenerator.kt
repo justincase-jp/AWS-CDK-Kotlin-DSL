@@ -12,13 +12,12 @@ import kotlin.reflect.full.declaredFunctions
 
 object PlusOperatorFunctionsWrapperGenerator : ICdkDslGenerator {
 
-    private val wrappedPropClasses = mutableSetOf<KClass<*>>()
-
     override suspend fun run(classes: Flow<Class<out Any>>, targetDir: File, moduleName: String, packageName: String) {
         val propBuilderFile = getFileSpecBuilder("PropBuilder", packageName)
         val operatorFunFile = getFileSpecBuilder("PlusAssignOperators", packageName)
 
         val propClasses = classes.filter { it.simpleName == "Builder" }.map { it.declaringClass.kotlin }.toList()
+        val wrappedPropClasses = mutableSetOf<KClass<*>>()
         classes
             .filterNot {
                 it.simpleName.contains("Jsii") || it.simpleName.contains("Builder") || propClasses.contains(it.kotlin) || it.isAnonymousClass
@@ -49,7 +48,7 @@ object PlusOperatorFunctionsWrapperGenerator : ICdkDslGenerator {
                     )
 
                     (if (!wrappedPropClasses.contains(propClass)) {
-                        createPropBuilder(propClass, lambdaType)
+                        createPropBuilder(propClass, lambdaType).apply { wrappedPropClasses.add(clazz) }
                     } else null) to createPlusAssign(clazz, lambdaType, builderScope, func)
                 }
             }.collect {
