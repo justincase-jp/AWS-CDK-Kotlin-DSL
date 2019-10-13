@@ -8,18 +8,20 @@ import kotlin.reflect.KParameter
 import kotlin.reflect.full.memberFunctions
 
 object PropClassExtensionGenerator : ICdkDslGenerator {
-    private val classFiles = mutableMapOf<String, FileSpec.Builder>()
+    private lateinit var file: FileSpec.Builder
 
     private val ignoreFunctionNames = setOf("build", "toString", "hashCode", "equals")
 
     override fun run(classes: Sequence<Class<out Any>>, targetDir: File, moduleName: String) {
+        val pack = classes.firstOrNull()?.getDslPackageName() ?: return
+        file = getFileSpecBuilder(pack.split('.').last().capitalize(), pack)
 
         val classGroup = classes.filter { it.simpleName == "Builder" }
             .map { it.kotlin }
             .groupBy { it.java.declaringClass.declaringClass == null }
         val parentMap = mutableMapOf<Class<*>, TypeSpec.Builder>()
-        buildClasses(classGroup[true] ?: emptyList()).forEach { (clazz, spec) ->
-            getClassFile(clazz).addType(spec)
+        buildClasses(classGroup[true] ?: emptyList()).forEach { (_, spec) ->
+            file.addType(spec)
         }
         buildClasses(classGroup[false] ?: emptyList()).forEach { (clazz, spec) ->
             val parentClass = clazz.java.declaringClass.declaringClass
@@ -32,12 +34,11 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
             }
             parent.addType(spec)
         }
-        parentMap.forEach { (clazz, builder) ->
-            getClassFile(clazz.kotlin).addType(builder.build())
+        parentMap.forEach { (_, builder) ->
+            file.addType(builder.build())
         }
-        classFiles.forEach { (_, builder) ->
-            builder.build().writeTo(targetDir)
-        }
+
+        file.build().writeTo(targetDir)
     }
 
     private fun buildClasses(list: List<KClass<*>>): Map<KClass<*>, TypeSpec> {
@@ -189,19 +190,7 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
         addType(sealedType.build())
     }
 
-    private fun getClassFile(clazz: KClass<*>): FileSpec.Builder {
-        val pack = clazz.java.getTrimmedPackageName()
-        return classFiles[pack] ?: FileSpec.builder(
-            "jp.justincase.cdkdsl.$pack",
-            pack.split('.').last().capitalize()
-        ).apply {
-            addAnnotation(AnnotationSpec.builder(Suppress::class).addMember("%S, %S", "FunctionName", "Unused").build())
-            addAliasedImport(MemberName("kotlin.collections", "plus"), "nonNullPlus")
-            classFiles[pack] = this
-        }
-    }
-
-    val KFunction<*>.arguments
+    private val KFunction<*>.arguments
         get() = parameters.filter { it.kind == KParameter.Kind.VALUE }
 
 }
