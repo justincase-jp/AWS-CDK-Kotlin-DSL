@@ -1,6 +1,12 @@
 package jp.justincase.cdkdsl.generator
 
 import com.squareup.kotlinpoet.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
@@ -8,22 +14,22 @@ import kotlin.reflect.KParameter
 import kotlin.reflect.full.memberFunctions
 
 object PropClassExtensionGenerator : ICdkDslGenerator {
-    private lateinit var file: FileSpec.Builder
 
     private val ignoreFunctionNames = setOf("build", "toString", "hashCode", "equals")
 
-    override fun run(classes: Sequence<Class<out Any>>, targetDir: File, moduleName: String) {
-        val pack = classes.firstOrNull()?.getDslPackageName() ?: return
-        file = getFileSpecBuilder(pack.split('.').last().capitalize(), pack)
+    override suspend fun run(classes: Flow<Class<out Any>>, targetDir: File, moduleName: String, packageName: String) {
+        val file = getFileSpecBuilder(packageName.split('.').last().capitalize(), packageName)
 
-        val classGroup = classes.filter { it.simpleName == "Builder" }
+        val builderClasses = classes.filter { it.simpleName == "Builder" }
             .map { it.kotlin }
-            .groupBy { it.java.declaringClass.declaringClass == null }
+
+        buildClasses(builderClasses.filter { it.java.declaringClass.declaringClass == null })
+            .forEach { (_, spec) ->
+                file.addType(spec)
+            }
+
         val parentMap = mutableMapOf<Class<*>, TypeSpec.Builder>()
-        buildClasses(classGroup[true] ?: emptyList()).forEach { (_, spec) ->
-            file.addType(spec)
-        }
-        buildClasses(classGroup[false] ?: emptyList()).forEach { (clazz, spec) ->
+        buildClasses(builderClasses.filter { it.java.declaringClass.declaringClass != null }).forEach { (clazz, spec) ->
             val parentClass = clazz.java.declaringClass.declaringClass
             val parent = if (parentMap.containsKey(parentClass)) {
                 parentMap.getValue(parentClass)
@@ -38,11 +44,11 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
             file.addType(builder.build())
         }
 
-        file.build().writeTo(targetDir)
+        withContext(Dispatchers.IO) { file.build().writeTo(targetDir) }
     }
 
-    private fun buildClasses(list: List<KClass<*>>): Map<KClass<*>, TypeSpec> {
-        return list.associateWith { clazz ->
+    private suspend fun buildClasses(flow: Flow<KClass<*>>): Map<KClass<*>, TypeSpec> {
+        return flow.map { clazz ->
             val wrapper = TypeSpec.classBuilder("${clazz.java.declaringClass.simpleName}BuilderScope")
             wrapper.addModifiers(KModifier.OPEN)
             wrapper.addCommonFunctions()
@@ -89,8 +95,8 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
                 }
                 .addStatement("return builder.build()")
                 .build())
-            wrapper.build()
-        }
+            clazz to wrapper.build()
+        }.toList().toMap()
     }
 
     private fun TypeSpec.Builder.addCommonFunctions() {
