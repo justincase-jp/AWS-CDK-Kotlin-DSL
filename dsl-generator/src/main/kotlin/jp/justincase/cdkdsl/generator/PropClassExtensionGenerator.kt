@@ -20,6 +20,8 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
     override suspend fun run(classes: Flow<Class<out Any>>, targetDir: File, moduleName: String, packageName: String) {
         val file = getFileSpecBuilder(packageName.split('.').last().capitalize(), packageName)
 
+        file.addAliasedImport(MemberName("kotlin.collections", "plus"), "nonNullPlus")
+
         val builderClasses = classes.filter { it.simpleName == "Builder" }
             .map { it.kotlin }
 
