@@ -14,6 +14,11 @@ publishing {
     }
 }
 
+repositories {
+    maven(url = "https://kotlin.bintray.com/kotlinx")
+}
+
 dependencies {
     implementation(kotlin("reflect"))
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.2")
 }
