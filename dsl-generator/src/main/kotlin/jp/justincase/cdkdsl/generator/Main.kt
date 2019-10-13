@@ -39,7 +39,7 @@ fun main(targetDir: File, moduleName: String) {
 }
 
 fun getFileSpecBuilder(fileName: String, packageName: String): FileSpec.Builder =
-    FileSpec.builder("jp.justincase.cdkdsl.$packageName", fileName).apply {
+    FileSpec.builder(packageName, fileName).apply {
         addAnnotation(AnnotationSpec.builder(Suppress::class).addMember("%S", "FunctionName, Unused").build())
     }
 
