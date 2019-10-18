@@ -1,9 +1,6 @@
 package jp.justincase.cdkdsl.generator
 
-import com.squareup.kotlinpoet.ClassName
-import com.squareup.kotlinpoet.FunSpec
-import com.squareup.kotlinpoet.LambdaTypeName
-import com.squareup.kotlinpoet.UNIT
+import com.squareup.kotlinpoet.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
@@ -92,8 +89,10 @@ object ConstructorFunctionGenerator : ICdkDslGenerator {
                         receiver(Construct::class)
                         addParameter("id", String::class)
                         addParameter(
-                            "configureProps",
-                            LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
+                            ParameterSpec.builder(
+                                "configureProps",
+                                LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
+                            ).defaultValue("{ }").build()
                         )
                         addStatement("return %T(this, id, %T().also(configureProps).build())", clazz, builderClass)
                     }.build()
@@ -111,8 +110,10 @@ object ConstructorFunctionGenerator : ICdkDslGenerator {
                         returns(clazz)
                         receiver(Construct::class)
                         addParameter(
-                            "configureProps",
-                            LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
+                            ParameterSpec.builder(
+                                "configureProps",
+                                LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
+                            ).defaultValue("{ }").build()
                         )
                         addStatement("return %T(%T().also(configureProps).build())", clazz, builderClass)
                     }.build()
@@ -130,8 +131,10 @@ object ConstructorFunctionGenerator : ICdkDslGenerator {
                     returns(clazz)
                     receiver(Construct::class)
                     addParameter(
-                        "configureProps",
-                        LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
+                        ParameterSpec.builder(
+                            "configureProps",
+                            LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
+                        ).defaultValue("{ }").build()
                     )
                     addStatement("return %T().also(configureProps).build()", builderClass)
                 }.build()
