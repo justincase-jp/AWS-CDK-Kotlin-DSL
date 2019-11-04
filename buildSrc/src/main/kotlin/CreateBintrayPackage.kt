@@ -12,7 +12,6 @@ import io.ktor.content.TextContent
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.util.KtorExperimentalAPI
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 
@@ -49,7 +48,7 @@ fun getCdkModules(): List<String> {
 fun createBintrayPackages(
     bintrayUser: String,
     bintrayApiKey: String
-) {
+) = runBlocking {
     val client = HttpClient(CIO) {
         install(Auth) {
             basic {
@@ -59,28 +58,26 @@ fun createBintrayPackages(
         }
         expectSuccess = false
     }
-    val requests = cdkModuleList.associateWith {
-        GlobalScope.async {
-            client.get<HttpStatusCode>("$apiBaseUrl/$it")
-        }
-    }.mapValues {
-        runBlocking { it.value.await() }
-    }.filterValues { it != HttpStatusCode.OK }.keys.map {
-        GlobalScope.async {
-            client.post<String>(apiBaseUrl) {
-                body = TextContent(
-                    jacksonObjectMapper().writeValueAsString(
-                        BintrayCreatePackageRequestJson(
-                            name = it,
-                            licenses = listOf("Apache-2.0"),
-                            vcsUrl = "https://github.com/justincase-jp/AWS-CDK-Kotlin-DSL"
+
+    cdkModuleList
+        .toSet()
+        .map {
+            async {
+                if (client.get<HttpStatusCode>("$apiBaseUrl/$it") != HttpStatusCode.OK) {
+                    client.post<String>(apiBaseUrl) {
+                        body = TextContent(
+                            contentType = ContentType.Application.Json,
+                            text = jacksonObjectMapper().writeValueAsString(
+                                BintrayCreatePackageRequestJson(
+                                    name = it,
+                                    licenses = listOf("Apache-2.0"),
+                                    vcsUrl = "https://github.com/justincase-jp/AWS-CDK-Kotlin-DSL"
+                                )
+                            )
                         )
-                    ), contentType = ContentType.Application.Json
-                )
+                    }
+                }
             }
         }
-    }
-    runBlocking {
-        requests.forEach { it.await() }
-    }
+        .forEach { it.await() }
 }
