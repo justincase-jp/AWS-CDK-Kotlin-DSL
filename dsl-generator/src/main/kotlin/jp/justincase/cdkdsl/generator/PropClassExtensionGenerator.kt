@@ -166,6 +166,7 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
                 .addParameter("value", parameterType.asTypeName())
                 .build()
             val clazz = TypeSpec.classBuilder(parameterClass.simpleName!!).apply {
+                addModifiers(KModifier.DATA)
                 primaryConstructor(constructor)
                 addProperty(
                     PropertySpec.builder("value", parameterType.asTypeName())
