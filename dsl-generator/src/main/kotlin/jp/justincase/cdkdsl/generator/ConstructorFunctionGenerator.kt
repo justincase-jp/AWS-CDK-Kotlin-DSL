@@ -1,6 +1,7 @@
 package jp.justincase.cdkdsl.generator
 
 import com.squareup.kotlinpoet.*
+import jp.justincase.cdkdsl.CdkDsl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
@@ -12,6 +13,7 @@ import java.io.File
 import java.lang.reflect.Constructor
 import java.lang.reflect.Modifier
 import java.lang.reflect.Parameter
+import javax.annotation.Generated
 
 object ConstructorFunctionGenerator : ICdkDslGenerator {
     override suspend fun run(classes: Flow<Class<out Any>>, targetDir: File, moduleName: String, packageName: String) {
@@ -85,15 +87,8 @@ object ConstructorFunctionGenerator : ICdkDslGenerator {
                     val propClass = getPropClass(constructor)
                     val builderClass = getBuilderClassName(clazz, propClass)
                     FunSpec.builder(clazz.simpleName).apply {
-                        returns(clazz)
-                        receiver(Construct::class)
+                        configureFun(clazz, builderClass)
                         addParameter("id", String::class)
-                        addParameter(
-                            ParameterSpec.builder(
-                                "configureProps",
-                                LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
-                            ).defaultValue("{ }").build()
-                        )
                         addStatement("return %T(this, id, %T().also(configureProps).build())", clazz, builderClass)
                     }.build()
                 }
@@ -107,14 +102,7 @@ object ConstructorFunctionGenerator : ICdkDslGenerator {
                     val propClass = getPropClass(constructor)
                     val builderClass = getBuilderClassName(clazz, propClass)
                     FunSpec.builder(clazz.simpleName).apply {
-                        returns(clazz)
-                        receiver(Construct::class)
-                        addParameter(
-                            ParameterSpec.builder(
-                                "configureProps",
-                                LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
-                            ).defaultValue("{ }").build()
-                        )
+                        configureFun(clazz, builderClass)
                         addStatement("return %T(%T().also(configureProps).build())", clazz, builderClass)
                     }.build()
                 }
@@ -128,17 +116,26 @@ object ConstructorFunctionGenerator : ICdkDslGenerator {
                 if (!clazz.haveBuilderClass()) return null
                 val builderClass = getBuilderClassName(clazz, clazz)
                 return FunSpec.builder(clazz.simpleName).apply {
-                    returns(clazz)
-                    receiver(Construct::class)
-                    addParameter(
-                        ParameterSpec.builder(
-                            "configureProps",
-                            LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
-                        ).defaultValue("{ }").build()
-                    )
+                    configureFun(clazz, builderClass)
                     addStatement("return %T().also(configureProps).build()", builderClass)
                 }.build()
             }
         }
+    }
+
+    private fun FunSpec.Builder.configureFun(
+        clazz: Class<*>,
+        builderClass: ClassName
+    ) {
+        addAnnotation(CdkDsl::class)
+        addAnnotation(Generated::class)
+        returns(clazz)
+        receiver(Construct::class)
+        addParameter(
+            ParameterSpec.builder(
+                "configureProps",
+                LambdaTypeName.get(receiver = builderClass, returnType = UNIT)
+            ).defaultValue("{ }").build()
+        )
     }
 }

@@ -4,7 +4,7 @@ plugins {
 
 publishing {
     publications {
-        register("maven", MavenPublication::class.java) {
+        register("maven", MavenPublication::class) {
             groupId = "jp.justincase"
             artifactId = "cdk-dsl-generator"
             version = project.version as String
@@ -21,4 +21,5 @@ repositories {
 dependencies {
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.2")
+    implementation(project(":dsl-common"))
 }
