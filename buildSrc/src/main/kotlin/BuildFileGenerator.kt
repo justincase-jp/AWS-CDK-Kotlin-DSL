@@ -235,6 +235,9 @@ publishing {
     """parent.addDependency("jp.justincase.aws-cdk-kotlin-dsl", "$it", "$cdkVersion-${projectVersion
         .split('-')[1]}")"""
 }}
+                parent.addDependency("jp.justincase.aws-cdk-kotlin-dsl", "dsl-common", "$cdkVersion-${projectVersion.split(
+    '-'
+)[1]}")
             }
         }
     }
