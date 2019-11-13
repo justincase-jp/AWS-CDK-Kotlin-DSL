@@ -7,6 +7,7 @@ jobs:
     steps:
       - checkout
       - run: gradle -S generateForAllModule
+      - run: "gradle -S :dsl-common:build"
 
   test:
     docker:
@@ -14,6 +15,7 @@ jobs:
     steps:
       - checkout
       - run: gradle -S test
+      - run: "gradle -S :dsl-common:test"
 
   deployForCdk:
     docker:
@@ -25,6 +27,7 @@ jobs:
             git ls-remote --exit-code origin refs/tags/v"${CIRCLE_BRANCH#release/}"
           fi
           gradle -S generateAndUploadForUpdatedCdk
+          gradle -S :dsl-common:bintrayUpload
 
   deployForUpdate:
     docker:
@@ -32,6 +35,7 @@ jobs:
     steps:
       - checkout
       - run: gradle -S uploadToBintrayForAllModule
+      - run: "gradle -S :dsl-common:bintrayUpload"
 
 
 workflows:

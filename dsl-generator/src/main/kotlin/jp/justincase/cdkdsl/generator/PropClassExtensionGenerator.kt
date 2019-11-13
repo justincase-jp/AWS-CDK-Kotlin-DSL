@@ -1,6 +1,7 @@
 package jp.justincase.cdkdsl.generator
 
 import com.squareup.kotlinpoet.*
+import jp.justincase.cdkdsl.CdkDsl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
@@ -8,6 +9,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withContext
 import java.io.File
+import javax.annotation.Generated
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
@@ -52,6 +54,8 @@ object PropClassExtensionGenerator : ICdkDslGenerator {
     private suspend fun buildClasses(flow: Flow<KClass<*>>): Map<KClass<*>, TypeSpec> {
         return flow.map { clazz ->
             val wrapper = TypeSpec.classBuilder("${clazz.java.declaringClass.simpleName}BuilderScope")
+            wrapper.addAnnotation(CdkDsl::class)
+            wrapper.addAnnotation(Generated::class)
             wrapper.addModifiers(KModifier.OPEN)
             wrapper.addCommonFunctions()
             val methods = clazz.memberFunctions

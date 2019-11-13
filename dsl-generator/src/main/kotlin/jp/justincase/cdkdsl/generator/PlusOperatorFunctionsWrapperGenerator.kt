@@ -1,10 +1,12 @@
 package jp.justincase.cdkdsl.generator
 
 import com.squareup.kotlinpoet.*
+import jp.justincase.cdkdsl.CdkDsl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.withContext
 import java.io.File
+import javax.annotation.Generated
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
@@ -67,6 +69,8 @@ object PlusOperatorFunctionsWrapperGenerator : ICdkDslGenerator {
         propClass: KClass<*>,
         lambdaType: LambdaTypeName
     ): FunSpec = FunSpec.builder(propClass.simpleName!!.decapitalize()).apply {
+        addAnnotation(CdkDsl::class)
+        addAnnotation(Generated::class)
         addParameter("id", String::class)
         addParameter(
             "configuration",
@@ -81,6 +85,8 @@ object PlusOperatorFunctionsWrapperGenerator : ICdkDslGenerator {
         builderScope: ClassName,
         func: KFunction<*>
     ): FunSpec = FunSpec.builder("plusAssign").apply {
+        addAnnotation(CdkDsl::class)
+        addAnnotation(Generated::class)
         addAnnotation(
             AnnotationSpec.builder(JvmName::class).addMember(
                 "%S",

@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    `embedded-kotlin`
+    kotlin("jvm") version "1.3.50"
 }
 
 repositories {
