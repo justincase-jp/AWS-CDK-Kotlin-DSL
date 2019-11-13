@@ -202,7 +202,7 @@ subprojects {
     
     dependencies {
         implementation(kotlin("stdlib"))
-        implementation("jp.justincase.aws-cdk-kotlin-dsl:dsl-common:${projectVersion.split('-')[1]})
+        implementation("jp.justincase.aws-cdk-kotlin-dsl:dsl-common:${projectVersion.split('-')[1]}")
     }
 }
 
