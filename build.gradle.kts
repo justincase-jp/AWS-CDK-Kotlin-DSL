@@ -84,6 +84,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         this.dependsOn(taskCheckCdkUpdate)
         this.dependsOn(taskCreateBintrayPackage)
         this.dependsOn(tasks.getByPath(":dsl-generator:publishToMavenLocal"))
+        this.dependsOn(tasks.getByPath(":dsl-common:publishToMavenLocal"))
         doLast {
             cdkLatestUnhandledVersions.forEach { (module, list) ->
                 list.onEach {
@@ -111,6 +112,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         this.group = "auto update"
         this.dependsOn(taskCheckCdkUpdate)
         this.dependsOn(tasks.getByPath(":dsl-generator:publishToMavenLocal"))
+        this.dependsOn(tasks.getByPath(":dsl-common:publishToMavenLocal"))
         doLast {
             generateBuildFiles(
                 project.version as String,
@@ -127,6 +129,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         this.group = "auto update"
         this.dependsOn(taskCheckCdkUpdate)
         this.dependsOn(tasks.getByPath(":dsl-generator:publishToMavenLocal"))
+        this.dependsOn(tasks.getByPath(":dsl-common:publishToMavenLocal"))
         doLast {
             cdkModuleList.forEach {
                 generateBuildFile(
@@ -173,6 +176,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         this.group = "auto update"
         this.dependsOn(taskCheckCdkUpdate)
         this.dependsOn(tasks.getByPath(":dsl-generator:publishToMavenLocal"))
+        this.dependsOn(tasks.getByPath(":dsl-common:publishToMavenLocal"))
         doLast {
             generateBuildFile(
                 project.version as String,
