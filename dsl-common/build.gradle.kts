@@ -7,7 +7,10 @@ plugins {
     id("com.jfrog.bintray")
 }
 
-group = "jp.justincase"
+group = "jp.justincase.aws-cdk-kotlin-dsl"
+version = (rootProject.version as String).let {
+    if (it == "unsupecified") it else it.split("-")[1]
+}
 
 repositories {
     mavenCentral()
