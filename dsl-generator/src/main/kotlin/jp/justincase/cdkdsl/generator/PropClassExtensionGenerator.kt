@@ -15,17 +15,22 @@ import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
 import kotlin.reflect.full.memberFunctions
 
-object PropClassExtensionGenerator : ICdkDslGenerator {
+object PropClassExtensionGenerator {
 
     private val ignoreFunctionNames = setOf("build", "toString", "hashCode", "equals")
 
-    override suspend fun run(classes: Flow<Class<out Any>>, targetDir: File, moduleName: String, packageName: String) {
+    suspend fun run(
+        classes: Flow<Class<out Any>>,
+        targetDir: File,
+        packageName: String
+    ) {
         val file = getFileSpecBuilder(packageName.split('.').last().capitalize(), packageName)
 
         file.addAliasedImport(MemberName("kotlin.collections", "plus"), "nonNullPlus")
 
-        val builderClasses = classes.filter { it.simpleName == "Builder" }
-            .map { it.kotlin }
+        val builderClasses = classes.map { clazz ->
+            clazz.declaredClasses.single { it.name == "Builder" }.kotlin
+        }
 
         buildClasses(builderClasses.filter { it.java.declaringClass.declaringClass == null })
             .forEach { (_, spec) ->

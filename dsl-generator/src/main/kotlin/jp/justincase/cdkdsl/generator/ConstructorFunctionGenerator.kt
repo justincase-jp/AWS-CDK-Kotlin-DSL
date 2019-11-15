@@ -5,7 +5,6 @@ import jp.justincase.cdkdsl.CdkDsl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import software.amazon.awscdk.core.Construct
@@ -15,16 +14,15 @@ import java.lang.reflect.Modifier
 import java.lang.reflect.Parameter
 import javax.annotation.Generated
 
-object ConstructorFunctionGenerator : ICdkDslGenerator {
-    override suspend fun run(classes: Flow<Class<out Any>>, targetDir: File, moduleName: String, packageName: String) {
+object ConstructorFunctionGenerator {
+    suspend fun run(
+        classes: Flow<Class<out Any>>,
+        targetDir: File,
+        packageName: String
+    ) {
         val file = getFileSpecBuilder("ConstructorFunctions", packageName)
-        /*
-        Generation target:
-        ・have specific constructor parameter
-        ・is not annotation, enum
-         */
+
         classes
-            .filter { !it.isAnnotation && !it.isEnum && !it.isAnonymousClass }
             .map { clazz ->
                 val generator = when {
                     (clazz.modifiers and (Modifier.ABSTRACT or Modifier.INTERFACE)) != 0 -> InternalGenerator.Interface
