@@ -118,7 +118,7 @@ object PropClassExtensionGenerator {
                 kotlin.run {
                     val code = when (target) {
                         CoreDslGenerator.GenerationTarget.INTERFACE -> "()"
-                        CoreDslGenerator.GenerationTarget.RESOURCE -> ".create(_scope, id)"
+                        CoreDslGenerator.GenerationTarget.RESOURCE -> ".create(_scope, _id)"
                         CoreDslGenerator.GenerationTarget.NO_ID -> ".create()"
                     }
                     addStatement("val builder = %T$code", clazz)
