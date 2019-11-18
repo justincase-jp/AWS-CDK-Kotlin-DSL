@@ -81,12 +81,12 @@ object PropClassExtensionGenerator {
                     addParameter("id", String::class)
                 }.build())
 
-                wrapper.addProperty(PropertySpec.builder("scope", Construct::class).apply {
+                wrapper.addProperty(PropertySpec.builder("_scope", Construct::class).apply {
                     initializer("scope")
                     addModifiers(KModifier.PRIVATE)
                 }.build())
 
-                wrapper.addProperty(PropertySpec.builder("id", String::class).apply {
+                wrapper.addProperty(PropertySpec.builder("_id", String::class).apply {
                     initializer("id")
                     addModifiers(KModifier.PRIVATE)
                 }.build())
@@ -118,7 +118,7 @@ object PropClassExtensionGenerator {
                 kotlin.run {
                     val code = when (target) {
                         CoreDslGenerator.GenerationTarget.INTERFACE -> "()"
-                        CoreDslGenerator.GenerationTarget.RESOURCE -> ".create(scope, id)"
+                        CoreDslGenerator.GenerationTarget.RESOURCE -> ".create(_scope, id)"
                         CoreDslGenerator.GenerationTarget.NO_ID -> ".create()"
                     }
                     addStatement("val builder = %T$code", clazz)

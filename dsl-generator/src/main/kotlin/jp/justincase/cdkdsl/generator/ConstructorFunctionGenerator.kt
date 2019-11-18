@@ -42,16 +42,6 @@ object ConstructorFunctionGenerator {
             && !parameter.type.isPrimitive
             && parameter.type.declaredClasses.any { it.simpleName == "Builder" }
 
-    private fun Constructor<*>.isResourceTypeConstructor() =
-        parameters.size == 3
-            && parameters[0].type == Construct::class.java
-            && parameters[1].type == java.lang.String::class.java
-            && isPropertyArg(parameters[2])
-
-    private fun Constructor<*>.isPropertyOnlyConstructor() =
-        parameters.size == 1
-            && isPropertyArg(parameters[0])
-
     @Suppress("unused")
     private sealed class InternalGenerator {
         abstract suspend fun generate(clazz: Class<*>): FunSpec?
