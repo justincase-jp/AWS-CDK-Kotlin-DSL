@@ -59,7 +59,9 @@ suspend fun generateBuildFileInternal(
     bintrayApiKey: String,
     baseDir: File
 ) {
-    val targetCdkVersion = (cdkVersion ?: latestDependedCdkVersions.getValue(cdkModule)).toString()
+    val latestDependVersion = latestDependedCdkVersions.getValue(cdkModule)
+    val targetCdkVersion =
+        (if (cdkVersion != null && cdkVersion > latestDependVersion) cdkVersion else latestDependVersion).toString()
     val targetDir = File(baseDir, targetCdkVersion)
     withContext(Dispatchers.IO) {
         targetDir.mkdirs()
