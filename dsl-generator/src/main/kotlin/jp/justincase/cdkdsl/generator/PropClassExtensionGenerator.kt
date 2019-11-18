@@ -69,7 +69,7 @@ object PropClassExtensionGenerator {
             wrapper.addAnnotation(CdkDsl::class)
             wrapper.addAnnotation(AnnotationSpec.builder(Generated::class).apply {
                 addMember("value = [\"jp.justincase.cdkdsl.generator.PropClassExtensionGenerator\", \"justincase-jp/AWS-CDK-Kotlin-DSL\"]")
-                addMember("date = $generationDate")
+                addMember("date = \"$generationDate\"")
             }.build())
 
             wrapper.addCommonFunctions()

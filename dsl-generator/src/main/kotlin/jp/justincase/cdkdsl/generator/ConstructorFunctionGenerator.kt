@@ -82,7 +82,6 @@ object ConstructorFunctionGenerator {
                     addParameter("id", String::class)
                     addStatement(
                         "return %T(this, id).also(configureProps).build()",
-                        builderScopeClassName,
                         builderScopeClassName
                     )
                 }.build()
@@ -92,10 +91,10 @@ object ConstructorFunctionGenerator {
         object OnlyProperty : InternalGenerator() {
 
             override suspend fun generate(clazz: Class<*>): FunSpec? {
-                val builderClass = getBuilderScopeClassName(clazz)
+                val builderScopeClassName = getBuilderScopeClassName(clazz)
                 return FunSpec.builder(clazz.simpleName).apply {
-                    configureFun(clazz, builderClass)
-                    addStatement("return %T().also(configureProps).build()", clazz, builderClass)
+                    configureFun(clazz, builderScopeClassName)
+                    addStatement("return %T().also(configureProps).build()", builderScopeClassName)
                 }.build()
             }
         }
@@ -106,10 +105,10 @@ object ConstructorFunctionGenerator {
 
             override suspend fun generate(clazz: Class<*>): FunSpec? {
                 if (!clazz.haveBuilderClass()) return null
-                val builderClass = getBuilderScopeClassName(clazz)
+                val builderScopeClassName = getBuilderScopeClassName(clazz)
                 return FunSpec.builder(clazz.simpleName).apply {
-                    configureFun(clazz, builderClass)
-                    addStatement("return %T().also(configureProps).build()", builderClass)
+                    configureFun(clazz, builderScopeClassName)
+                    addStatement("return %T().also(configureProps).build()", builderScopeClassName)
                 }.build()
             }
         }
@@ -122,7 +121,7 @@ object ConstructorFunctionGenerator {
         addAnnotation(CdkDsl::class)
         addAnnotation(AnnotationSpec.builder(Generated::class).apply {
             addMember("value = [\"jp.justincase.cdkdsl.generator.ConstructorFunctionGenerator\", \"justincase-jp/AWS-CDK-Kotlin-DSL\"]")
-            addMember("date = $generationDate")
+            addMember("date = \"$generationDate\"")
         }.build())
         returns(clazz)
         receiver(Construct::class)
