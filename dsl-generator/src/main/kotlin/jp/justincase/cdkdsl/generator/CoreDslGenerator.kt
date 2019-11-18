@@ -17,7 +17,7 @@ object CoreDslGenerator : ICdkDslGenerator {
                 1. Builderクラスを持っていること
                 2. Builderクラスのコンストラクター(引数なし)がpublicなこと
                  */
-                clazz.declaredClasses.singleOrNull { it.name == "Builder" }?.let { builder ->
+                clazz.declaredClasses.singleOrNull { it.simpleName == "Builder" }?.let { builder ->
                     builder.constructors.any { constructor ->
                         (constructor.modifiers and Modifier.PUBLIC) != 0 && constructor.parameterCount == 0
                     }
@@ -28,7 +28,7 @@ object CoreDslGenerator : ICdkDslGenerator {
                 1. Builderクラスを持っていること
                 2. Builderクラスのcreate()関数が特定の引数を持っていること
                 */
-                clazz.declaredClasses.singleOrNull { it.name == "Builder" }?.let { builder ->
+                clazz.declaredClasses.singleOrNull { it.simpleName == "Builder" }?.let { builder ->
                     builder.declaredMethods.any {
                         it.name == "create" &&
                             it.parameterCount == 0 || (
@@ -41,7 +41,7 @@ object CoreDslGenerator : ICdkDslGenerator {
             }
         }
         val paired = filtered.mapNotNull { clazz ->
-            val builder = clazz.declaredClasses.single { it.name == "Builder" }
+            val builder = clazz.declaredClasses.single { it.simpleName == "Builder" }
             clazz to when {
                 (clazz.modifiers and (Modifier.ABSTRACT or Modifier.INTERFACE)) != 0 -> GenerationTarget.INTERFACE
                 builder.isResourceTypeBuilder() -> GenerationTarget.RESOURCE

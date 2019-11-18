@@ -30,7 +30,7 @@ object PropClassExtensionGenerator {
         file.addAliasedImport(MemberName("kotlin.collections", "plus"), "nonNullPlus")
 
         val builderClasses = classes.map { (clazz, target) ->
-            clazz.declaredClasses.single { it.name == "Builder" }.kotlin to target
+            clazz.declaredClasses.single { it.simpleName == "Builder" }.kotlin to target
         }
 
         builderClasses.filter { (it, _) ->
