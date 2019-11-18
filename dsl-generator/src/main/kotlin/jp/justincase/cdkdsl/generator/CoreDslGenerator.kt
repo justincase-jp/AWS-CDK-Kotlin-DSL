@@ -54,14 +54,14 @@ object CoreDslGenerator : ICdkDslGenerator {
     }
 
     private fun Class<*>.isResourceTypeBuilder() =
-        declaredMethods.single { it.name == "create" }.let {
+        declaredMethods.singleOrNull { it.name == "create" }?.let {
             it.parameterCount == 2 &&
                 it.parameterTypes[0] == Construct::class.java &&
                 it.parameterTypes[1] == java.lang.String::class.java
-        }
+        } ?: false
 
     private fun Class<*>.isPropertyOnlyTypeBuilder() =
-        declaredMethods.single { it.name == "create" }.parameterCount == 0
+        declaredMethods.singleOrNull { it.name == "create" }?.parameterCount == 0
 
     enum class GenerationTarget {
         // Interface, abstract class
