@@ -1,7 +1,6 @@
 package jp.justincase.cdkdsl.generator
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.mapNotNull
 import software.amazon.awscdk.core.Construct
@@ -41,7 +40,7 @@ object CoreDslGenerator : ICdkDslGenerator {
                 } == true
             }
         }
-        filtered.mapNotNull { clazz ->
+        val paired = filtered.mapNotNull { clazz ->
             val builder = clazz.declaredClasses.single { it.name == "Builder" }
             clazz to when {
                 (clazz.modifiers and (Modifier.ABSTRACT or Modifier.INTERFACE)) != 0 -> GenerationTarget.INTERFACE
@@ -49,9 +48,9 @@ object CoreDslGenerator : ICdkDslGenerator {
                 builder.isPropertyOnlyTypeBuilder() -> GenerationTarget.NO_ID
                 else -> return@mapNotNull null
             }
-        }.collect {
-            // ToDo
         }
+        PropClassExtensionGenerator.run(paired, targetDir, packageName)
+        ConstructorFunctionGenerator.run(paired, targetDir, packageName)
     }
 
     private fun Class<*>.isResourceTypeBuilder() =
