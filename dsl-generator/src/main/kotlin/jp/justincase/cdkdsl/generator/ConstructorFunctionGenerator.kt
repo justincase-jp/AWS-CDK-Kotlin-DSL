@@ -10,27 +10,24 @@ import kotlinx.coroutines.withContext
 import software.amazon.awscdk.core.Construct
 import java.io.File
 import java.lang.reflect.Constructor
-import java.lang.reflect.Modifier
 import java.lang.reflect.Parameter
 import javax.annotation.Generated
 
 object ConstructorFunctionGenerator {
     suspend fun run(
-        classes: Flow<Class<out Any>>,
+        classes: Flow<Pair<Class<out Any>, CoreDslGenerator.GenerationTarget>>,
         targetDir: File,
         packageName: String
     ) {
         val file = getFileSpecBuilder("ConstructorFunctions", packageName)
 
         classes
-            .map { clazz ->
-                val generator = when {
-                    (clazz.modifiers and (Modifier.ABSTRACT or Modifier.INTERFACE)) != 0 -> InternalGenerator.Interface
-                    clazz.constructors.singleOrNull { it.isResourceTypeConstructor() } != null -> InternalGenerator.WithId
-                    clazz.constructors.singleOrNull { it.isPropertyOnlyConstructor() } != null -> InternalGenerator.OnlyProperty
-                    else -> null
-                }
-                generator?.generate(clazz)
+            .map { (clazz, target) ->
+                when (target) {
+                    CoreDslGenerator.GenerationTarget.INTERFACE -> InternalGenerator.Interface
+                    CoreDslGenerator.GenerationTarget.RESOURCE -> InternalGenerator.WithId
+                    CoreDslGenerator.GenerationTarget.NO_ID -> InternalGenerator.OnlyProperty
+                }.generate(clazz)
             }.collect {
                 it?.apply { file.addFunction(this) }
             }
@@ -41,19 +38,19 @@ object ConstructorFunctionGenerator {
 
     private fun isPropertyArg(parameter: Parameter): Boolean =
         parameter.type != Construct::class.java
-                && parameter.type != java.lang.String::class.java
-                && !parameter.type.isPrimitive
-                && parameter.type.declaredClasses.any { it.simpleName == "Builder" }
+            && parameter.type != java.lang.String::class.java
+            && !parameter.type.isPrimitive
+            && parameter.type.declaredClasses.any { it.simpleName == "Builder" }
 
     private fun Constructor<*>.isResourceTypeConstructor() =
         parameters.size == 3
-                && parameters[0].type == Construct::class.java
-                && parameters[1].type == java.lang.String::class.java
-                && isPropertyArg(parameters[2])
+            && parameters[0].type == Construct::class.java
+            && parameters[1].type == java.lang.String::class.java
+            && isPropertyArg(parameters[2])
 
     private fun Constructor<*>.isPropertyOnlyConstructor() =
         parameters.size == 1
-                && isPropertyArg(parameters[0])
+            && isPropertyArg(parameters[0])
 
     @Suppress("unused")
     private sealed class InternalGenerator {
@@ -61,49 +58,46 @@ object ConstructorFunctionGenerator {
 
         fun getPropClass(constructor: Constructor<*>) = constructor.parameters.single(::isPropertyArg).type!!
 
-        fun getBuilderClassName(
-            clazz: Class<*>,
-            propClass: Class<*>
+        fun getBuilderScopeClassName(
+            clazz: Class<*>
         ): ClassName {
-            return if (propClass.declaringClass != null) {
+            return if (clazz.declaringClass != null) {
                 ClassName(
                     clazz.getDslPackageName(),
-                    "${propClass.getDslPackageName()}.${propClass.declaringClass.simpleName}.${propClass.simpleName}BuilderScope"
+                    "${clazz.getDslPackageName()}.${clazz.declaringClass.simpleName}.${clazz.simpleName}BuilderScope"
                 )
             } else {
                 ClassName(
                     clazz.getDslPackageName(),
-                    "${propClass.simpleName}BuilderScope"
+                    "${clazz.simpleName}BuilderScope"
                 )
             }
         }
 
         object WithId : InternalGenerator() {
-            override suspend fun generate(clazz: Class<*>) = clazz.constructors
-                .singleOrNull { it.isResourceTypeConstructor() }
-                ?.let { constructor ->
-                    val propClass = getPropClass(constructor)
-                    val builderClass = getBuilderClassName(clazz, propClass)
-                    FunSpec.builder(clazz.simpleName).apply {
-                        configureFun(clazz, builderClass)
-                        addParameter("id", String::class)
-                        addStatement("return %T(this, id, %T().also(configureProps).build())", clazz, builderClass)
-                    }.build()
-                }
+            override suspend fun generate(clazz: Class<*>): FunSpec? {
+                val builderScopeClassName = getBuilderScopeClassName(clazz)
+                return FunSpec.builder(clazz.simpleName).apply {
+                    configureFun(clazz, builderScopeClassName)
+                    addParameter("id", String::class)
+                    addStatement(
+                        "return %T(this, id).also(configureProps).build()",
+                        builderScopeClassName,
+                        builderScopeClassName
+                    )
+                }.build()
+            }
         }
 
         object OnlyProperty : InternalGenerator() {
 
-            override suspend fun generate(clazz: Class<*>) = clazz.constructors
-                .singleOrNull { it.isPropertyOnlyConstructor() }
-                ?.let { constructor ->
-                    val propClass = getPropClass(constructor)
-                    val builderClass = getBuilderClassName(clazz, propClass)
-                    FunSpec.builder(clazz.simpleName).apply {
-                        configureFun(clazz, builderClass)
-                        addStatement("return %T(%T().also(configureProps).build())", clazz, builderClass)
-                    }.build()
-                }
+            override suspend fun generate(clazz: Class<*>): FunSpec? {
+                val builderClass = getBuilderScopeClassName(clazz)
+                return FunSpec.builder(clazz.simpleName).apply {
+                    configureFun(clazz, builderClass)
+                    addStatement("return %T().also(configureProps).build()", clazz, builderClass)
+                }.build()
+            }
         }
 
         object Interface : InternalGenerator() {
@@ -112,7 +106,7 @@ object ConstructorFunctionGenerator {
 
             override suspend fun generate(clazz: Class<*>): FunSpec? {
                 if (!clazz.haveBuilderClass()) return null
-                val builderClass = getBuilderClassName(clazz, clazz)
+                val builderClass = getBuilderScopeClassName(clazz)
                 return FunSpec.builder(clazz.simpleName).apply {
                     configureFun(clazz, builderClass)
                     addStatement("return %T().also(configureProps).build()", builderClass)
@@ -126,7 +120,10 @@ object ConstructorFunctionGenerator {
         builderClass: ClassName
     ) {
         addAnnotation(CdkDsl::class)
-        addAnnotation(Generated::class)
+        addAnnotation(AnnotationSpec.builder(Generated::class).apply {
+            addMember("value = [\"jp.justincase.cdkdsl.generator.ConstructorFunctionGenerator\", \"justincase-jp/AWS-CDK-Kotlin-DSL\"]")
+            addMember("date = $generationDate")
+        }.build())
         returns(clazz)
         receiver(Construct::class)
         addParameter(
