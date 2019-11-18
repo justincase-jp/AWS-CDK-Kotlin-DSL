@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withContext
+import software.amazon.awscdk.core.Construct
 import java.io.File
 import javax.annotation.Generated
 import kotlin.reflect.KClass
@@ -20,7 +21,7 @@ object PropClassExtensionGenerator {
     private val ignoreFunctionNames = setOf("build", "toString", "hashCode", "equals")
 
     suspend fun run(
-        classes: Flow<Class<out Any>>,
+        classes: Flow<Pair<Class<out Any>, CoreDslGenerator.GenerationTarget>>,
         targetDir: File,
         packageName: String
     ) {
@@ -28,17 +29,21 @@ object PropClassExtensionGenerator {
 
         file.addAliasedImport(MemberName("kotlin.collections", "plus"), "nonNullPlus")
 
-        val builderClasses = classes.map { clazz ->
-            clazz.declaredClasses.single { it.name == "Builder" }.kotlin
+        val builderClasses = classes.map { (clazz, target) ->
+            clazz.declaredClasses.single { it.name == "Builder" }.kotlin to target
         }
 
-        buildClasses(builderClasses.filter { it.java.declaringClass.declaringClass == null })
-            .forEach { (_, spec) ->
-                file.addType(spec)
-            }
+        builderClasses.filter { (it, _) ->
+            it.java.declaringClass.declaringClass == null
+        }.buildClasses().forEach { (_, spec) ->
+            file.addType(spec)
+        }
 
         val parentMap = mutableMapOf<Class<*>, TypeSpec.Builder>()
-        buildClasses(builderClasses.filter { it.java.declaringClass.declaringClass != null }).forEach { (clazz, spec) ->
+
+        builderClasses.filter { (it, _) ->
+            it.java.declaringClass.declaringClass != null
+        }.buildClasses().forEach { (clazz, spec) ->
             val parentClass = clazz.java.declaringClass.declaringClass
             val parent = if (parentMap.containsKey(parentClass)) {
                 parentMap.getValue(parentClass)
@@ -49,6 +54,7 @@ object PropClassExtensionGenerator {
             }
             parent.addType(spec)
         }
+
         parentMap.forEach { (_, builder) ->
             file.addType(builder.build())
         }
@@ -56,13 +62,37 @@ object PropClassExtensionGenerator {
         withContext(Dispatchers.IO) { file.build().writeTo(targetDir) }
     }
 
-    private suspend fun buildClasses(flow: Flow<KClass<*>>): Map<KClass<*>, TypeSpec> {
-        return flow.map { clazz ->
+    private suspend fun Flow<Pair<KClass<out Any>, CoreDslGenerator.GenerationTarget>>.buildClasses(): Map<KClass<*>, TypeSpec> {
+        return map { (clazz, target) ->
             val wrapper = TypeSpec.classBuilder("${clazz.java.declaringClass.simpleName}BuilderScope")
+            // Annotation
             wrapper.addAnnotation(CdkDsl::class)
-            wrapper.addAnnotation(Generated::class)
-            wrapper.addModifiers(KModifier.OPEN)
+            wrapper.addAnnotation(AnnotationSpec.builder(Generated::class).apply {
+                addMember("value = [\"jp.justincase.cdkdsl.generator.PropClassExtensionGenerator\", \"justincase-jp/AWS-CDK-Kotlin-DSL\"]")
+                addMember("date = $generationDate")
+            }.build())
+
             wrapper.addCommonFunctions()
+
+            // Constructor
+            if (target == CoreDslGenerator.GenerationTarget.RESOURCE) {
+                wrapper.primaryConstructor(FunSpec.constructorBuilder().apply {
+                    addParameter("scope", Construct::class)
+                    addParameter("id", String::class)
+                }.build())
+
+                wrapper.addProperty(PropertySpec.builder("scope", Construct::class).apply {
+                    initializer("scope")
+                    addModifiers(KModifier.PRIVATE)
+                }.build())
+
+                wrapper.addProperty(PropertySpec.builder("id", String::class).apply {
+                    initializer("id")
+                    addModifiers(KModifier.PRIVATE)
+                }.build())
+            }
+
+            // Property and functions
             val methods = clazz.memberFunctions
                 .filter { !ignoreFunctionNames.contains(it.name) && it.arguments.size == 1 && !it.isExternal }
             val duplicates = methods.groupBy { it.name }.filterValues { it.count() >= 2 }.toMutableMap()
@@ -80,9 +110,20 @@ object PropClassExtensionGenerator {
                 }
             }
             handledDuplicates.clear()
+
+            // build()
             val funSpec = FunSpec.builder("build").apply {
                 returns(clazz.java.declaringClass.kotlin)
-                addStatement("val builder = %T()", clazz)
+
+                kotlin.run {
+                    val code = when (target) {
+                        CoreDslGenerator.GenerationTarget.INTERFACE -> "()"
+                        CoreDslGenerator.GenerationTarget.RESOURCE -> ".create(scope, id)"
+                        CoreDslGenerator.GenerationTarget.NO_ID -> ".create()"
+                    }
+                    addStatement("val builder = %T$code", clazz)
+                }
+
                 methods.forEach { method ->
                     val name = method.name
                     val fieldName = name.decapitalize()
@@ -105,6 +146,7 @@ object PropClassExtensionGenerator {
                 addStatement("return builder.build()")
             }.build()
             wrapper.addFunction(funSpec)
+
             clazz to wrapper.build()
         }.toList().toMap()
     }
