@@ -5,16 +5,23 @@ import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.FileSpec
 import kotlinx.coroutines.flow.*
 import java.io.File
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 
 /**
  * You can implement your own generator.
  * Create object implements [ICdkDslGenerator], add it to this, then run [main].
  */
 val generators = mutableListOf(
-    ConstructorFunctionGenerator,
-    PropClassExtensionGenerator,
+    CoreDslGenerator,
     PlusOperatorFunctionsWrapperGenerator
 )
+
+/**
+ * This string should be used in [javax.annotation.Generated]'s date parameter
+ */
+val generationDate: String = ZonedDateTime.now(ZoneId.of("Asia/Tokyo")).format(DateTimeFormatter.ISO_ZONED_DATE_TIME)
 
 suspend fun main(args: Array<String>) {
     require(args.isNotEmpty()) { "application argument is required" }

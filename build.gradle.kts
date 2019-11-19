@@ -116,7 +116,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         doLast {
             generateBuildFiles(
                 project.version as String,
-                null,
+                Version(awsCdkVersion),
                 kotlinVersion,
                 bintrayUser,
                 bintrayKey,
@@ -134,7 +134,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
             cdkModuleList.forEach {
                 generateBuildFile(
                     project.version as String,
-                    null,
+                    Version(awsCdkVersion),
                     it,
                     kotlinVersion,
                     bintrayUser,
