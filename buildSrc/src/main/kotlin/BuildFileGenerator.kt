@@ -156,7 +156,9 @@ fun uploadGeneratedFile(
     cdkModule: String,
     baseDir: File
 ) {
-    val targetCdkVersion = (cdkVersion ?: latestDependedCdkVersions.getValue(cdkModule)).toString()
+    val latestDependVersion = latestDependedCdkVersions.getValue(cdkModule)
+    val targetCdkVersion =
+        (if (cdkVersion != null && cdkVersion > latestDependVersion) cdkVersion else latestDependVersion).toString()
     val targetDir = File(baseDir, targetCdkVersion)
     println("==========".repeat(8))
     val exitCode = ProcessBuilder("gradle", "-S", "bintrayUpload").run {
