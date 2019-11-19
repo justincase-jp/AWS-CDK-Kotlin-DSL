@@ -151,7 +151,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         this.dependsOn(taskGenerateForAllModuleParallel)
         doLast {
             uploadGeneratedFiles(
-                null,
+                Version(awsCdkVersion),
                 File(buildDir, "cdkdsl")
             )
         }
@@ -164,7 +164,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         doLast {
             cdkModuleList.forEach {
                 uploadGeneratedFile(
-                    null,
+                    Version(awsCdkVersion),
                     it,
                     File(buildDir, "cdkdsl/$it")
                 )
