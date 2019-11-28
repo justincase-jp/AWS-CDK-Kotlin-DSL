@@ -27,7 +27,6 @@ jobs:
             git ls-remote --exit-code origin refs/tags/v"${CIRCLE_BRANCH#release/}"
           fi
           gradle -S generateAndUploadForUpdatedCdk
-          gradle -S :dsl-common:bintrayUpload
 
   deployForUpdate:
     docker:
