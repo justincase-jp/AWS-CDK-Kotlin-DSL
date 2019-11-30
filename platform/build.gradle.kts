@@ -1,4 +1,4 @@
-group = "jp.justincase"
+group = "jp.justincase.aws-cdk-kotlin-dsl"
 
 plugins {
     `java-platform`
