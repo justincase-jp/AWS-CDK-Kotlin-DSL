@@ -155,7 +155,7 @@ fun uploadGeneratedFile(
     cdkVersion: Version?,
     cdkModule: String,
     baseDir: File
-) {
+): Version {
     val latestDependVersion = latestDependedCdkVersions.getValue(cdkModule)
     val targetCdkVersion =
         (if (cdkVersion != null && cdkVersion > latestDependVersion) cdkVersion else latestDependVersion).toString()
@@ -167,6 +167,30 @@ fun uploadGeneratedFile(
     println("==========".repeat(8))
     if (exitCode != 0) throw RuntimeException("Process exited with non-zero code: $exitCode. target module is $cdkModule:$targetCdkVersion")
     println("Upload for $cdkModule:$targetCdkVersion have done.")
+    return Version(targetCdkVersion)
+}
+
+fun generateAndUploadPlatformModule(
+    cdkModuleList: List<String>,
+    cdkVersion: Version,
+    baseDir: File
+) {
+    val targetDir = File(baseDir, cdkVersion.toString())
+    File(targetDir, "build.gradle.kts").apply {
+        createNewFile()
+        writeText(platformBuildGradleKts(cdkModuleList, cdkVersion.toString()))
+    }
+    File(targetDir, "settings.gradle").apply {
+        createNewFile()
+        writeText(platformSettingsGradleKts())
+    }
+    println("==========".repeat(8))
+    val exitCode = ProcessBuilder("gradle", "-S", "bintrayUpload").run {
+        setupCommand(targetDir)
+    }.waitFor()
+    println("==========".repeat(8))
+    if (exitCode != 0) throw RuntimeException("Process exited with non-zero code: $exitCode. target module is gradle-platform:$cdkVersion")
+    println("Upload for gradle-platform:$cdkVersion have done.")
 }
 
 private fun getRootBuildGradleKtsFileText(
@@ -313,4 +337,54 @@ private fun settingsGradleFileText(module: String) = """
 rootProject.name = "$module"
 include 'generator'
 include 'generated'
+"""
+
+private fun platformBuildGradleKts(moduleList: List<String>, version: String) = """
+group = "jp.justincase.aws-cdk-kotlin-dsl"
+
+plugins {
+    `java-platform`
+    id("maven-publish")
+    id("com.jfrog.bintray")
+}
+
+dependencies {
+    constraints {
+        ${moduleList.joinToString(separator = ";") { "api(\"jp.justincase.aws-cdk-kotlin-dsl:$it:$version\"" }}
+    }
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("platform") {
+            from(components["javaPlatform"])
+        }
+    }
+}
+
+if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] != null || project.hasProperty("bintrayApiKey")) {
+    val bintrayUser = System.getenv("bintrayUser") ?: System.getenv()["bintrayUser"]
+    ?: project.findProperty("bintrayUser") as String
+    val bintrayKey = System.getenv("bintrayApiKey") ?: System.getenv()["bintrayApiKey"]
+    ?: project.findProperty("bintrayApiKey") as String
+    bintray {
+        user = bintrayUser
+        key = bintrayKey
+        setPublications("platform")
+        publish = true
+        pkg(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.PackageConfig> {
+            userOrg = "justincase"
+            repo = "aws-cdk-kotlin-dsl"
+            name = "gradle-platform"
+            version(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.VersionConfig> {
+                name = project.version as String
+            })
+        })
+    }
+}
+
+"""
+
+private fun platformSettingsGradleKts() = """
+rootProject.name = "gradle-platform"
 """

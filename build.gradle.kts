@@ -66,6 +66,7 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         this.dependsOn(tasks.getByPath(":dsl-generator:publishToMavenLocal"))
         this.dependsOn(tasks.getByPath(":dsl-common:publishToMavenLocal"))
         doLast {
+            val versionModuleMap = mutableMapOf<Version, MutableList<String>>()
             cdkLatestUnhandledVersions.forEach { (module, list) ->
                 list.onEach {
                     generateBuildFile(
@@ -83,7 +84,19 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
                         module,
                         File(buildDir, "cdkdsl/$module")
                     )
+                    if (versionModuleMap.containsKey(it)) {
+                        versionModuleMap.getValue(it) += module
+                    } else {
+                        versionModuleMap[it] = mutableListOf(module)
+                    }
                 }
+            }
+            versionModuleMap.forEach { (version, moduleList) ->
+                generateAndUploadPlatformModule(
+                    moduleList,
+                    version,
+                    File(buildDir, "cdkdsl/gradle-platform")
+                )
             }
         }
     }
@@ -142,11 +155,24 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
         this.dependsOn(taskCreateBintrayPackage)
         this.dependsOn(taskGenerateForAllModule)
         doLast {
+            val versionModuleMap = mutableMapOf<Version, MutableList<String>>()
             cdkModuleList.forEach {
-                uploadGeneratedFile(
+                val version = uploadGeneratedFile(
                     Version(awsCdkVersion),
                     it,
                     File(buildDir, "cdkdsl/$it")
+                )
+                if (versionModuleMap.containsKey(version)) {
+                    versionModuleMap.getValue(version) += it
+                } else {
+                    versionModuleMap[version] = mutableListOf(it)
+                }
+            }
+            versionModuleMap.forEach { (version, moduleList) ->
+                generateAndUploadPlatformModule(
+                    moduleList,
+                    version,
+                    File(buildDir, "cdkdsl/gradle-platform")
                 )
             }
         }
