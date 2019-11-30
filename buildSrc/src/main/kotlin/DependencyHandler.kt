@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.io.jvm.javaio.toInputStream
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import javax.xml.parsers.DocumentBuilderFactory
 
@@ -43,6 +44,8 @@ suspend fun getModuleDependencies(): Map<String, List<String>> {
         }.toList().toMap().apply { moduleDependencyMap = this }
     }
 }
+
+fun getModuleDependenciesBlocking() = runBlocking { getModuleDependencies() }
 
 data class PomArtifact(
     val groupId: String,

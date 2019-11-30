@@ -1,8 +1,5 @@
-import org.jetbrains.kotlin.gradle.plugin.KotlinPluginWrapper
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 plugins {
-    kotlin("jvm") version "1.3.50"
+    kotlin("jvm") version "1.3.60"
     id("maven-publish")
     id("com.jfrog.bintray") version "1.8.4"
 }
@@ -30,23 +27,6 @@ allprojects {
     }
 }
 
-subprojects {
-    apply<KotlinPluginWrapper>()
-
-    dependencies {
-        implementation(kotlin("stdlib-jdk8"))
-
-        implementation("com.squareup:kotlinpoet:1.3.0")
-        implementation("com.google.guava:guava:28.0-jre")
-        // AWS CDK
-        implementation("software.amazon.awscdk", "lambda", awsCdkVersion)
-        implementation("software.amazon.awscdk", "sam", awsCdkVersion)
-    }
-
-    tasks.withType<KotlinCompile> {
-        kotlinOptions.jvmTarget = "1.8"
-    }
-}
 
 val taskGetCdkModules by tasks.register("getCdkModules") {
     this.group = "auto update"
