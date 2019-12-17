@@ -176,6 +176,7 @@ fun generateAndUploadPlatformModule(
     baseDir: File
 ) {
     val targetDir = File(baseDir, cdkVersion.toString())
+    targetDir.mkdirs()
     File(targetDir, "build.gradle.kts").apply {
         createNewFile()
         writeText(platformBuildGradleKts(cdkModuleList, cdkVersion.toString()))
