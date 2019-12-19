@@ -173,13 +173,24 @@ fun uploadGeneratedFile(
 fun generateAndUploadPlatformModule(
     cdkModuleList: List<String>,
     cdkVersion: Version,
-    baseDir: File
+    projectVersion: String,
+    baseDir: File,
+    bintrayUser: String,
+    bintrayApiKey: String
 ) {
     val targetDir = File(baseDir, cdkVersion.toString())
     targetDir.mkdirs()
     File(targetDir, "build.gradle.kts").apply {
         createNewFile()
-        writeText(platformBuildGradleKts(cdkModuleList, cdkVersion.toString()))
+        writeText(
+            platformBuildGradleKts(
+                cdkModuleList,
+                cdkVersion.toString(),
+                projectVersion,
+                bintrayUser,
+                bintrayApiKey
+            )
+        )
     }
     File(targetDir, "settings.gradle").apply {
         createNewFile()
@@ -340,18 +351,25 @@ include 'generator'
 include 'generated'
 """
 
-private fun platformBuildGradleKts(moduleList: List<String>, version: String) = """
+private fun platformBuildGradleKts(
+    moduleList: List<String>,
+    version: String,
+    projectVersion: String,
+    bintrayUser: String,
+    bintrayApiKey: String
+) = """
 group = "jp.justincase.aws-cdk-kotlin-dsl"
+version = "$version-$projectVersion"
 
 plugins {
     `java-platform`
     id("maven-publish")
-    id("com.jfrog.bintray")
+    id("com.jfrog.bintray") version "1.8.4"
 }
 
 dependencies {
     constraints {
-        ${moduleList.joinToString(separator = ";") { "api(\"jp.justincase.aws-cdk-kotlin-dsl:$it:$version\"" }}
+        ${moduleList.joinToString(separator = ";") { "api(\"jp.justincase.aws-cdk-kotlin-dsl:$it:$version\")" }}
     }
 }
 
@@ -363,25 +381,22 @@ publishing {
     }
 }
 
-if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] != null || project.hasProperty("bintrayApiKey")) {
-    val bintrayUser = System.getenv("bintrayUser") ?: System.getenv()["bintrayUser"]
-    ?: project.findProperty("bintrayUser") as String
-    val bintrayKey = System.getenv("bintrayApiKey") ?: System.getenv()["bintrayApiKey"]
-    ?: project.findProperty("bintrayApiKey") as String
-    bintray {
-        user = bintrayUser
-        key = bintrayKey
-        setPublications("platform")
-        publish = true
-        pkg(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.PackageConfig> {
-            userOrg = "justincase"
-            repo = "aws-cdk-kotlin-dsl"
-            name = "gradle-platform"
-            version(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.VersionConfig> {
-                name = project.version as String
-            })
+val bintrayUser = "$bintrayUser"
+val bintrayKey = "$bintrayApiKey"
+
+bintray {
+    user = bintrayUser
+    key = bintrayKey
+    setPublications("platform")
+    publish = true
+    pkg(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.PackageConfig> {
+        userOrg = "justincase"
+        repo = "aws-cdk-kotlin-dsl"
+        name = "gradle-platform"
+        version(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.VersionConfig> {
+            name = project.version as String
         })
-    }
+    })
 }
 
 """

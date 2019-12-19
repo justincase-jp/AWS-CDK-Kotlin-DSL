@@ -95,7 +95,10 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
                 generateAndUploadPlatformModule(
                     moduleList,
                     version,
-                    File(buildDir, "cdkdsl/gradle-platform")
+                    project.version as String,
+                    File(buildDir, "cdkdsl/gradle-platform"),
+                    bintrayUser,
+                    bintrayKey
                 )
             }
         }
@@ -172,7 +175,10 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
                 generateAndUploadPlatformModule(
                     moduleList,
                     version,
-                    File(buildDir, "cdkdsl/gradle-platform")
+                    project.version as String,
+                    File(buildDir, "cdkdsl/gradle-platform"),
+                    bintrayUser,
+                    bintrayKey
                 )
             }
         }
@@ -193,6 +199,36 @@ if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] !
                 bintrayKey,
                 File(buildDir, "cdkdsl/lambda")
             )
+        }
+    }
+
+    tasks.register("uploadPlatform") {
+        this.group = "auto update"
+        this.dependsOn(taskCreateBintrayPackage)
+        doLast {
+            getCdkUpdatedVersions()
+            val versionModuleMap = mutableMapOf<Version, MutableList<String>>()
+            cdkModuleList.forEach {
+                val cdkVersion = Version(awsCdkVersion)
+                val latestDependVersion = latestDependedCdkVersions.getValue(it)
+                val version =
+                    (if (cdkVersion != null && cdkVersion > latestDependVersion) cdkVersion else latestDependVersion)
+                if (versionModuleMap.containsKey(version)) {
+                    versionModuleMap.getValue(version) += it
+                } else {
+                    versionModuleMap[version] = mutableListOf(it)
+                }
+            }
+            versionModuleMap.forEach { (version, moduleList) ->
+                generateAndUploadPlatformModule(
+                    moduleList,
+                    version,
+                    project.version as String,
+                    File(buildDir, "cdkdsl/gradle-platform"),
+                    bintrayUser,
+                    bintrayKey
+                )
+            }
         }
     }
 } else {
