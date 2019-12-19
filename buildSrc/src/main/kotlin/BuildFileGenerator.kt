@@ -359,7 +359,7 @@ private fun platformBuildGradleKts(
     bintrayApiKey: String
 ) = """
 group = "jp.justincase.aws-cdk-kotlin-dsl"
-version = "$version-$projectVersion"
+version = "$version-${projectVersion.split("-").first()}"
 
 plugins {
     `java-platform`
