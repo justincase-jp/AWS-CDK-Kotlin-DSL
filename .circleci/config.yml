@@ -35,7 +35,6 @@ jobs:
       - checkout
       - run: gradle -S uploadToBintrayForAllModule
       - run: "gradle -S :dsl-common:bintrayUpload"
-      - run: "gradle -S :platform:bintrayUpload"
 
 
 workflows:
