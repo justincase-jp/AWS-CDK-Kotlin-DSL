@@ -68,8 +68,8 @@ object ConstructorFunctionGenerator {
             override suspend fun generate(clazz: Class<*>): FunSpec? {
                 val builderScopeClassName = getBuilderScopeClassName(clazz)
                 return FunSpec.builder(clazz.simpleName).apply {
-                    configureFun(clazz, builderScopeClassName)
                     addParameter("id", String::class)
+                    configureFun(clazz, builderScopeClassName)
                     addStatement(
                         "return %T(this, id).also(configureProps).build()",
                         builderScopeClassName
