@@ -370,9 +370,7 @@ plugins {
 dependencies {
     constraints {
         ${moduleList.joinToString(separator = ";") {
-    "api(\"jp.justincase.aws-cdk-kotlin-dsl:$it:$version-${projectVersion.split(
-        "-"
-    ).first()}\")"
+    "api(\"jp.justincase.aws-cdk-kotlin-dsl:$it:\${project.version}\")"
 }}
     }
 }
