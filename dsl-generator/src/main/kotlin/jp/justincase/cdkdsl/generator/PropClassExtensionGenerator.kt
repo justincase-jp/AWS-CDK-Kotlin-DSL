@@ -72,6 +72,7 @@ object PropClassExtensionGenerator {
                 addMember("date = \"$generationDate\"")
             }.build())
 
+            wrapper.addModifiers(KModifier.OPEN)
             wrapper.addCommonFunctions()
 
             // Constructor
