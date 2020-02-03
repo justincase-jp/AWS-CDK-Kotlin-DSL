@@ -24,7 +24,7 @@ suspend fun getModuleDependencies(): Map<String, List<String>> {
         cdkLatestVersions.keys.asFlow().map { module ->
             val version = cdkLatestVersions.getValue(module).toString()
             val targetUrl =
-                "https://central.maven.org/maven2/software/amazon/awscdk/$module/$version/$module-${
+                "https://repo1.maven.org/maven2/software/amazon/awscdk/$module/$version/$module-${
                 version}.pom"
             val doc = withContext(Dispatchers.IO) {
                 val response = client.get<HttpResponse>(targetUrl)
