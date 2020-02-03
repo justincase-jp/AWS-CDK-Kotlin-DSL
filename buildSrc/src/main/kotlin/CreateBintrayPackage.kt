@@ -16,7 +16,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 
 private const val requestUrl =
-    "http://search.maven.org/solrsearch/select?q=g:software.amazon.awscdk&rows=200&wt=json&start=0"
+    "https://search.maven.org/solrsearch/select?q=g:software.amazon.awscdk&rows=200&wt=json&start=0"
 private val apiBaseUrl = "https://api.bintray.com/packages/justincase/aws-cdk-kotlin-dsl"
 
 lateinit var cdkModuleList: List<String>
