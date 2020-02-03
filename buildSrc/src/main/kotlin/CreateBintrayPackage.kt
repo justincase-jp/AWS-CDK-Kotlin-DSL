@@ -11,12 +11,11 @@ import io.ktor.client.request.post
 import io.ktor.content.TextContent
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 
 private const val requestUrl =
-    "http://search.maven.org/solrsearch/select?q=g:software.amazon.awscdk&rows=200&wt=json&start=0"
+    "https://search.maven.org/solrsearch/select?q=g:software.amazon.awscdk&rows=200&wt=json&start=0"
 private val apiBaseUrl = "https://api.bintray.com/packages/justincase/aws-cdk-kotlin-dsl"
 
 lateinit var cdkModuleList: List<String>
@@ -24,7 +23,7 @@ lateinit var cdkModuleList: List<String>
 
 val leastVersion = Version("1.0.0")
 
-@KtorExperimentalAPI
+@UseExperimental(io.ktor.util.KtorExperimentalAPI::class)
 fun getCdkModules(): List<String> {
     val client = HttpClient(CIO)
     val response = runBlocking { client.get<String>(requestUrl) }
@@ -44,7 +43,7 @@ fun getCdkModules(): List<String> {
  * 必ず事前に[cdkModuleList]を呼び出しておくこと。
  * さもなくばエラー
  */
-@KtorExperimentalAPI
+@UseExperimental(io.ktor.util.KtorExperimentalAPI::class)
 fun createBintrayPackages(
     bintrayUser: String,
     bintrayApiKey: String
