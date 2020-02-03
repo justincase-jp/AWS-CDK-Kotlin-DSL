@@ -3,7 +3,6 @@ import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.get
 import io.ktor.client.response.HttpResponse
 import io.ktor.http.HttpStatusCode
-import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.map
@@ -27,10 +26,10 @@ private lateinit var latestVersionMap: MutableMap<String, Version>
 val latestDependedCdkVersions: Map<String, Version>
     get() = latestVersionMap.toMap()
 
-@KtorExperimentalAPI
+@UseExperimental(io.ktor.util.KtorExperimentalAPI::class)
 private val client = HttpClient(CIO)
 
-@KtorExperimentalAPI
+@UseExperimental(io.ktor.util.KtorExperimentalAPI::class)
 fun getCdkUpdatedVersions(): Map<String, List<Version>> = runBlocking {
     val latestGeneratedCdkVersions = cdkModuleList.asFlow()
         .map { module ->

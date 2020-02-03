@@ -3,7 +3,6 @@ import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.get
 import io.ktor.client.response.HttpResponse
 import io.ktor.http.HttpStatusCode
-import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.map
@@ -13,13 +12,13 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import javax.xml.parsers.DocumentBuilderFactory
 
-@KtorExperimentalAPI
+@UseExperimental(io.ktor.util.KtorExperimentalAPI::class)
 private val client = HttpClient(CIO)
 
 lateinit var moduleDependencyMap: Map<String, List<String>>
     private set
 
-@KtorExperimentalAPI
+@UseExperimental(io.ktor.util.KtorExperimentalAPI::class)
 suspend fun getModuleDependencies(): Map<String, List<String>> {
     return if (::moduleDependencyMap.isInitialized) moduleDependencyMap else withContext(Dispatchers.Default) {
         cdkLatestVersions.keys.asFlow().map { module ->

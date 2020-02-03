@@ -1,8 +1,7 @@
-import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.*
 import java.io.File
 
-@KtorExperimentalAPI
+@UseExperimental(io.ktor.util.KtorExperimentalAPI::class)
 fun generateBuildFiles(
     projectVersion: String,
     cdkVersion: Version?,
@@ -27,7 +26,7 @@ fun generateBuildFiles(
     }.joinAll()
 }
 
-@KtorExperimentalAPI
+@UseExperimental(io.ktor.util.KtorExperimentalAPI::class)
 fun generateBuildFile(
     projectVersion: String,
     cdkVersion: Version?,
@@ -49,7 +48,7 @@ fun generateBuildFile(
     )
 }
 
-@KtorExperimentalAPI
+@UseExperimental(io.ktor.util.KtorExperimentalAPI::class)
 suspend fun generateBuildFileInternal(
     projectVersion: String,
     cdkVersion: Version?,
