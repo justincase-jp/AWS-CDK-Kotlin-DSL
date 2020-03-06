@@ -4,13 +4,14 @@ plugins {
 }
 
 val awsCdkVersion: String by project
+version = rootProject.version.toString().split("-")[1]
 
 publishing {
     publications {
         register("maven", MavenPublication::class) {
             groupId = "jp.justincase"
             artifactId = "cdk-dsl-generator"
-            version = project.version as String
+            version = project.version.toString()
 
             from(project.components["java"])
         }

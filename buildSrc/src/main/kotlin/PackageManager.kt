@@ -36,7 +36,7 @@ object PackageManager {
 
     private val leastVersion = Version("1.20.0")
 
-    val cdkModules by lazy {
+    val cdkModules: Set<String> by lazy {
         val response = runBlocking { client.get<String>(requestUrl) }
         val obj = jacksonObjectMapper().readValue<ResponseJson>(response)
         obj.response.docs.filter {
@@ -49,7 +49,7 @@ object PackageManager {
         }.map { it.a }.toSet()
     }
 
-    val latestGeneratedCdkVersions by lazy {
+    val latestGeneratedCdkVersions: Map<String, Version> by lazy {
         val job = GlobalScope.async {
             cdkModules.asFlow()
                 .map { module ->
@@ -74,7 +74,7 @@ object PackageManager {
         }
     }
 
-    val cdkVersions by lazy {
+    val cdkVersions: Map<String, List<Version>> by lazy {
         runSuspend {
             cdkModules.asFlow()
                 .map { module ->
@@ -94,17 +94,43 @@ object PackageManager {
         }
     }
 
-    val latestCdkVersions by lazy {
+    val latestCdkVersions: Map<String, Version> by lazy {
         cdkVersions.mapValues { pair -> pair.value.last() }
     }
 
-    val unhandledCdkVersions by lazy {
+    val modulesForLatestCdkVersions: Map<Version, Set<String>> by lazy {
+        val map = mutableMapOf<Version, MutableSet<String>>()
+        latestCdkVersions.forEach { (module, version) ->
+            if (map.containsKey(version)) {
+                map[version]!! += module
+            } else {
+                map[version] = mutableSetOf(module)
+            }
+        }
+        map
+    }
+
+    val unhandledCdkVersions: Map<String, List<Version>> by lazy {
         cdkVersions.mapValues { pair ->
             pair.value.filter { it > latestGeneratedCdkVersions.getValue(pair.key) }
         }
     }
 
-    val moduleDependencyMap by lazy {
+    val unhandledCdkModulesForVersions: Map<Version, Set<String>> by lazy {
+        val map = mutableMapOf<Version, MutableSet<String>>()
+        unhandledCdkVersions.forEach { (module, versions) ->
+            versions.forEach {
+                if (map.containsKey(it)) {
+                    map[it]!! += module
+                } else {
+                    map[it] = mutableSetOf(module)
+                }
+            }
+        }
+        map
+    }
+
+    val moduleDependencyMap: Map<String, List<String>> by lazy {
         runSuspend {
             latestCdkVersions.keys.asFlow().map { module ->
                 val version = latestCdkVersions.getValue(module).toString()
