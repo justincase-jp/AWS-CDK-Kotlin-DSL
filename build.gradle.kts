@@ -1,11 +1,11 @@
 plugins {
-    kotlin("jvm") version "1.3.60"
+    kotlin("jvm") version "1.3.70"
     id("maven-publish")
     id("com.jfrog.bintray") version "1.8.4"
 }
 
 tasks.getByName<Wrapper>("wrapper") {
-    gradleVersion = "5.6.2"
+    gradleVersion = "6.2.2"
 }
 
 fun String.removePrefixOrNull(prefix: String): String? =
