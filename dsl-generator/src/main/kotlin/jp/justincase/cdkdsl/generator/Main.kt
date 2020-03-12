@@ -1,3 +1,5 @@
+@file:Suppress("UnstableApiUsage")
+
 package jp.justincase.cdkdsl.generator
 
 import com.google.common.reflect.ClassPath
@@ -21,11 +23,11 @@ val generators = mutableListOf(
 /**
  * This string should be used in [javax.annotation.Generated]'s date parameter
  */
-val generationDate: String = ZonedDateTime.now(ZoneId.of("Asia/Tokyo")).format(DateTimeFormatter.ISO_ZONED_DATE_TIME)
+val generationDate: String = ZonedDateTime.now(ZoneId.of("Asia/Tokyo")).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
 
 suspend fun main(args: Array<String>) {
     require(args.isNotEmpty()) { "application argument is required" }
-    main(File(if (args.size >= 2) args[1] else "generated"), args[0])
+    main(File(if (args.size >= 2) args[1] else "build/generated"), args[0])
 }
 
 @Suppress("BlockingMethodInNonBlockingContext")
