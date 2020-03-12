@@ -5,6 +5,8 @@ import java.io.File
 
 object BuildFileGenerator {
 
+    private val ci = System.getenv("CI")?.toBoolean() == true
+
     fun generateAndBuildForUnhandledCdkVersions(
         kotlinVersion: String,
         projectVersion: String,
@@ -169,9 +171,10 @@ object BuildFileGenerator {
         try {
             executor.setExitValue(0)
             executor.workingDirectory = File(targetDir, cdkVersion.toString())
-            executor.execute(CommandLine.parse("gradle -S generateAll build --parallel"))
+            executor.execute(CommandLine.parse("gradle -S generateAll build $parallelIfNotCi"))
+            executor.watchdog
         } catch (e: Exception) {
-            e.printStackTrace()
+            throw e
         }
         println("Completed generation and build for cdk version $cdkVersion")
     }
@@ -201,12 +204,14 @@ object BuildFileGenerator {
         try {
             executor.setExitValue(0)
             executor.workingDirectory = File(targetDir, cdkVersion.toString())
-            executor.execute(CommandLine.parse("gradle -S publishAll --parallel"))
+            executor.execute(CommandLine.parse("gradle -S publishAll $parallelIfNotCi"))
         } catch (e: Exception) {
-            e.printStackTrace()
+            throw e
         }
         println("Completed publishing for cdk version $cdkVersion")
     }
+
+    private val parallelIfNotCi: String by lazy { if (ci) "--parallel" else "" }
 
     // Build File Templates
 
