@@ -3,6 +3,7 @@ package jp.justincase.cdkdsl.generator
 import com.squareup.kotlinpoet.*
 import jp.justincase.cdkdsl.CdkDsl
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -14,6 +15,7 @@ import kotlin.reflect.full.declaredFunctions
 
 object PlusOperatorFunctionsWrapperGenerator : ICdkDslGenerator {
 
+    @OptIn(FlowPreview::class)
     override suspend fun run(classes: Flow<Class<out Any>>, targetDir: File, moduleName: String, packageName: String) {
         val propBuilderFile = getFileSpecBuilder("PropBuilder", packageName)
         val operatorFunFile = getFileSpecBuilder("PlusAssignOperators", packageName)
@@ -25,19 +27,16 @@ object PlusOperatorFunctionsWrapperGenerator : ICdkDslGenerator {
                 it.simpleName.contains("Jsii") || it.simpleName.contains("Builder") || propClasses.contains(it.kotlin) || it.isAnonymousClass
             }.map { it.kotlin }.map { clazz ->
                 clazz to clazz.declaredFunctions.filter { method ->
-                    !method.isExternal &&
-                            method.name.startsWith("add") &&
-                            method.parameters
-                                .filter { it.kind == KParameter.Kind.VALUE }.run {
-                                    size == 2 && map { it.type }.let { parameterClasses ->
-                                        parameterClasses[0].classifier == String::class && propClasses.contains(
-                                            parameterClasses[1].classifier as? KClass<out Any>
-                                        )
-                                    }
-                                }
+                    !method.isExternal && method.name.startsWith("add") && method.parameters.filter {
+                        it.kind == KParameter.Kind.VALUE
+                    }.run {
+                        size == 2 && map { it.type.classifier }.let { classifiers ->
+                            classifiers[0] == String::class && propClasses.contains(classifiers[1] as? KClass<out Any>)
+                        }
+                    }
                 }
-            }.filter { it.second.isNotEmpty() }.map { (clazz, functions) ->
-                functions.map { func ->
+            }.filter { it.second.isNotEmpty() }.flatMapConcat { (clazz, functions) ->
+                functions.asFlow().map { func ->
                     val propClass =
                         func.parameters.filter { it.kind == KParameter.Kind.VALUE }[1].type.classifier as KClass<*>
 
@@ -53,11 +52,9 @@ object PlusOperatorFunctionsWrapperGenerator : ICdkDslGenerator {
                         createPropBuilder(propClass, lambdaType).apply { wrappedPropClasses.add(propClass) }
                     } else null) to createPlusAssign(clazz, lambdaType, builderScope, func)
                 }
-            }.collect {
-                it.forEach { (prop, op) ->
-                    prop?.apply { propBuilderFile.addFunction(this) }
-                    operatorFunFile.addFunction(op)
-                }
+            }.collect { (prop, op) ->
+                prop?.apply { propBuilderFile.addFunction(this) }
+                operatorFunFile.addFunction(op)
             }
         withContext(Dispatchers.IO) {
             propBuilderFile.build().writeTo(targetDir)
