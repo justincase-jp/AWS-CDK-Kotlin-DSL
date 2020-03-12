@@ -211,7 +211,7 @@ object BuildFileGenerator {
         println("Completed publishing for cdk version $cdkVersion")
     }
 
-    private val parallelIfNotCi: String by lazy { if (ci) "--parallel" else "" }
+    private val parallelIfNotCi: String by lazy { if (!ci) "--parallel" else "" }
 
     // Build File Templates
 
