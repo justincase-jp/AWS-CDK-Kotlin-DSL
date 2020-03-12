@@ -314,6 +314,7 @@ object BuildFileGenerator {
             implementation("jp.justincase.aws-cdk-kotlin-dsl:dsl-common:$projectVersion")
             api("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
             implementation("software.amazon.awscdk", "core", "$cdkVersion")
+            ${PackageManager.moduleDependencyMap.getValue(cdkModule).joinToString("\n\t") { "api(project(\":$it\"))" }}
         }
         
         publishing {

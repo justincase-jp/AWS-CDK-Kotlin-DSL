@@ -35,7 +35,7 @@ tasks {
         val bintrayKey = System.getenv("bintrayApiKey") ?: System.getenv()["bintrayApiKey"]
         ?: project.findProperty("bintrayApiKey") as String
 
-        register("generateAndBuildForLatestVersion") {
+        val genLatest = register("generateAndBuildForLatestVersion") {
             group = "cdk-dsl"
             dependsOn(getByPath(":dsl-generator:publishToMavenLocal"))
             dependsOn(getByPath(":dsl-common:publishToMavenLocal"))
@@ -50,7 +50,7 @@ tasks {
             }
         }
 
-        register("generateAndBuildForUnhandledCdkVersions") {
+        val genUnhandled = register("generateAndBuildForUnhandledCdkVersions") {
             group = "cdk-dsl"
             dependsOn(getByPath(":dsl-generator:publishToMavenLocal"))
             dependsOn(getByPath(":dsl-common:publishToMavenLocal"))
@@ -67,6 +67,7 @@ tasks {
 
         register("publishForLatestVersion") {
             group = "cdk-dsl"
+            dependsOn(genLatest)
             doLast {
                 BuildFileGenerator.publishForLatestVersion(File(buildDir, "cdkdsl"))
             }
@@ -74,6 +75,7 @@ tasks {
 
         register("publishForUnhandledCdkVersions") {
             group = "cdk-dsl"
+            dependsOn(genUnhandled)
             doLast {
                 BuildFileGenerator.publishForUnhandledCdkVersions(File(buildDir, "cdkdsl"))
             }

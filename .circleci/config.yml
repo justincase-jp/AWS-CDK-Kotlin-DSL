@@ -6,7 +6,7 @@ jobs:
       - image: gradle:6.0.1-jdk8
     steps:
       - checkout
-      - run: gradle -S generateForAllModule
+      - run: gradle -S generateAndBuildForLatestVersion
       - run: "gradle -S :dsl-common:build"
 
   test:
@@ -26,16 +26,15 @@ jobs:
           if [ -z ${CIRCLE_TAG+x} ]; then
             git ls-remote --exit-code origin refs/tags/v"${CIRCLE_BRANCH#release/}"
           fi
-          gradle -S generateAndUploadForUpdatedCdk
+          gradle -S publishForUnhandledCdkVersions
 
   deployForUpdate:
     docker:
       - image: gradle:5.6.0-jdk8
     steps:
       - checkout
-      - run: gradle -S uploadToBintrayForAllModule
+      - run: gradle -S publishForLatestVersion
       - run: "gradle -S :dsl-common:bintrayUpload"
-
 
 workflows:
   version: 2
