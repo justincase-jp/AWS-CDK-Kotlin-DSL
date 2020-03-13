@@ -67,7 +67,10 @@ object PlusOperatorFunctionsWrapperGenerator : ICdkDslGenerator {
         lambdaType: LambdaTypeName
     ): FunSpec = FunSpec.builder(propClass.simpleName!!.decapitalize()).apply {
         addAnnotation(CdkDsl::class)
-        addAnnotation(Generated::class)
+        addAnnotation(AnnotationSpec.builder(Generated::class).apply {
+            addMember("value = [\"jp.justincase.cdkdsl.generator.PlusOperatorFunctionsWrapperGenerator\", \"justincase-jp/AWS-CDK-Kotlin-DSL\"]")
+            addMember("date = \"$generationDate\"")
+        }.build())
         addParameter("id", String::class)
         addParameter(
             "configuration",
@@ -83,7 +86,10 @@ object PlusOperatorFunctionsWrapperGenerator : ICdkDslGenerator {
         func: KFunction<*>
     ): FunSpec = FunSpec.builder("plusAssign").apply {
         addAnnotation(CdkDsl::class)
-        addAnnotation(Generated::class)
+        addAnnotation(AnnotationSpec.builder(Generated::class).apply {
+            addMember("value = [\"jp.justincase.cdkdsl.generator.PlusOperatorFunctionsWrapperGenerator\", \"justincase-jp/AWS-CDK-Kotlin-DSL\"]")
+            addMember("date = \"$generationDate\"")
+        }.build())
         addAnnotation(
             AnnotationSpec.builder(JvmName::class).addMember(
                 "%S",
