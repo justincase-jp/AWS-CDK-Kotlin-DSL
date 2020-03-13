@@ -1,407 +1,394 @@
-import kotlinx.coroutines.*
+import data.Version
+import org.apache.commons.exec.CommandLine
+import org.apache.commons.exec.DefaultExecutor
 import java.io.File
 
-@UseExperimental(io.ktor.util.KtorExperimentalAPI::class)
-fun generateBuildFiles(
-    projectVersion: String,
-    cdkVersion: Version?,
-    kotlinVersion: String,
-    bintrayUser: String,
-    bintrayApiKey: String,
-    baseDir: File
-) = runBlocking {
-    getModuleDependencies()
-    cdkModuleList.map { module ->
-        launch(Dispatchers.Default) {
-            generateBuildFileInternal(
-                projectVersion,
-                cdkVersion,
-                module,
-                kotlinVersion,
-                bintrayUser,
-                bintrayApiKey,
-                File(baseDir, module)
+object BuildFileGenerator {
+
+    private val ci = System.getenv("CI")?.toBoolean() == true
+
+    fun generateAndBuildForUnhandledCdkVersions(
+        kotlinVersion: String,
+        projectVersion: String,
+        targetDir: File,
+        bintrayUser: String,
+        bintrayApiKey: String
+    ) {
+        generateBuildFilesForUnhandledCdkVersions(
+            kotlinVersion = kotlinVersion,
+            projectVersion = projectVersion,
+            targetDir = targetDir,
+            bintrayUser = bintrayUser,
+            bintrayApiKey = bintrayApiKey
+        )
+        runGeneratorsForUnhandledCdkVersions(targetDir = targetDir)
+    }
+
+    fun generateAndBuildForLatestVersion(
+        kotlinVersion: String,
+        projectVersion: String,
+        targetDir: File,
+        bintrayUser: String,
+        bintrayApiKey: String
+    ) {
+        PackageManager.modulesForLatestCdkVersions.forEach { (version, modules) ->
+            generateBuildFilesForVersion(
+                kotlinVersion = kotlinVersion,
+                cdkVersion = version,
+                projectVersion = projectVersion,
+                targetDir = targetDir,
+                bintrayUser = bintrayUser,
+                bintrayApiKey = bintrayApiKey,
+                moduleList = modules.toList()
+            )
+            runGeneratorForVersion(
+                version,
+                targetDir
             )
         }
-    }.joinAll()
-}
+    }
 
-@UseExperimental(io.ktor.util.KtorExperimentalAPI::class)
-fun generateBuildFile(
-    projectVersion: String,
-    cdkVersion: Version?,
-    cdkModule: String,
-    kotlinVersion: String,
-    bintrayUser: String,
-    bintrayApiKey: String,
-    baseDir: File
-) = runBlocking {
-    getModuleDependencies()
-    generateBuildFileInternal(
-        projectVersion,
-        cdkVersion,
-        cdkModule,
-        kotlinVersion,
-        bintrayUser,
-        bintrayApiKey,
-        baseDir
-    )
-}
+    private fun generateBuildFilesForUnhandledCdkVersions(
+        kotlinVersion: String,
+        projectVersion: String,
+        targetDir: File,
+        bintrayUser: String,
+        bintrayApiKey: String
+    ) {
+        PackageManager.unhandledCdkModulesForVersions.forEach { (version, modules) ->
+            generateBuildFilesForVersion(
+                kotlinVersion = kotlinVersion,
+                cdkVersion = version,
+                projectVersion = projectVersion,
+                targetDir = targetDir,
+                bintrayUser = bintrayUser,
+                bintrayApiKey = bintrayApiKey,
+                moduleList = modules.toList()
+            )
+        }
+    }
 
-@UseExperimental(io.ktor.util.KtorExperimentalAPI::class)
-suspend fun generateBuildFileInternal(
-    projectVersion: String,
-    cdkVersion: Version?,
-    cdkModule: String,
-    kotlinVersion: String,
-    bintrayUser: String,
-    bintrayApiKey: String,
-    baseDir: File
-) {
-    val latestDependVersion = latestDependedCdkVersions.getValue(cdkModule)
-    val targetCdkVersion =
-        (if (cdkVersion != null && cdkVersion > latestDependVersion) cdkVersion else latestDependVersion).toString()
-    val targetDir = File(baseDir, targetCdkVersion)
-    withContext(Dispatchers.IO) {
-        targetDir.mkdirs()
-        File(targetDir, "build.gradle.kts").apply {
+    private fun generateBuildFilesForVersion(
+        kotlinVersion: String,
+        cdkVersion: Version,
+        projectVersion: String,
+        targetDir: File,
+        bintrayUser: String,
+        bintrayApiKey: String,
+        moduleList: List<String>
+    ) {
+        val generateDir = File(targetDir, cdkVersion.toString())
+        generateDir.mkdirs()
+
+        // root build.gradle.kts
+        File(generateDir, "build.gradle.kts").apply {
             createNewFile()
             writeText(
-                getRootBuildGradleKtsFileText(
-                    projectVersion,
-                    targetCdkVersion,
-                    cdkModule,
-                    kotlinVersion,
-                    bintrayUser,
-                    bintrayApiKey
+                `get root build-gradle-kts file as text`(
+                    kotlinVersion = kotlinVersion,
+                    cdkVersion = cdkVersion.toString(),
+                    projectVersion = projectVersion,
+                    modules = moduleList
                 )
             )
         }
-        File(targetDir, "settings.gradle").apply {
+        // root settings.gradle.kts
+        File(generateDir, "settings.gradle.kts").apply {
             createNewFile()
-            writeText(settingsGradleFileText(cdkModule))
+            writeText(
+                `get root settings-gradle-kts file as text`(
+                    modules = moduleList
+                )
+            )
         }
-        File(targetDir, "generator").apply {
-            mkdirs()
-            File(this, "build.gradle.kts").apply {
+
+        // for each cdk module
+        moduleList.forEach { module ->
+            val moduleDir = File(generateDir, module)
+            moduleDir.mkdirs()
+            // generated build.gradle.kts
+            File(moduleDir, "build.gradle.kts").apply {
                 createNewFile()
                 writeText(
-                    getGeneratorBuildGradleKtsFileText(
-                        projectVersion,
-                        cdkModule,
-                        targetCdkVersion,
-                        File(targetDir, "generated")
+                    `get generated build-gradle-kts file as text`(
+                        cdkModule = module,
+                        cdkVersion = cdkVersion.toString(),
+                        bintrayUser = bintrayUser,
+                        bintrayApiKey = bintrayApiKey,
+                        projectVersion = projectVersion
+                    )
+                )
+            }
+            val generatorDir = File(generateDir, "$module-gen")
+            generatorDir.mkdirs()
+            // generator build.gradle.kts
+            File(generatorDir, "build.gradle.kts").apply {
+                createNewFile()
+                writeText(
+                    `get generator build-gradle-kts file as text`(
+                        cdkModule = module,
+                        cdkVersion = cdkVersion.toString(),
+                        projectVersion = projectVersion,
+                        targetDir = moduleDir
                     )
                 )
             }
         }
-        File(targetDir, "generated").apply {
-            mkdirs()
-            File(this, "build.gradle.kts").apply {
+
+        // gradle-platform
+        File(generateDir, "platform").let { platformDir ->
+            platformDir.mkdirs()
+            File(platformDir, "build.gradle.kts").apply {
                 createNewFile()
                 writeText(
-                    getGeneratedBuildGradleKtsFileText(
-                        cdkModule,
-                        targetCdkVersion
+                    `get platform build-gradle-kts file as text`(
+                        bintrayUser = bintrayUser,
+                        bintrayApiKey = bintrayApiKey,
+                        modules = moduleList
                     )
                 )
             }
         }
     }
-    withContext(Dispatchers.IO) {
-        println("Code generation for $cdkModule:$targetCdkVersion will be start")
-        println("==========".repeat(8))
-        val exitCode = ProcessBuilder("gradle", "-S", ":generator:run", ":generated:build").run {
-            setupCommand(targetDir)
-        }.waitFor()
-        println("==========".repeat(8))
-        if (exitCode != 0) throw RuntimeException("Process exited with non-zero code: $exitCode. target module is $cdkModule:$cdkVersion")
-    }
-    println("Code generation for $cdkModule:$targetCdkVersion have done.")
-}
 
-private fun ProcessBuilder.setupCommand(targetDir: File): Process {
-    directory(targetDir)
-    environment()["PATH"] = System.getenv("PATH")
-    redirectErrorStream(true)
-    return start().apply {
-        val reader = inputStream.bufferedReader(Charsets.UTF_8)
-        val builder = StringBuilder()
-        var c: Int
-        while (reader.read().apply { c = this } != -1) {
-            builder.append(c.toChar())
-        }
-        println(builder.toString())
-    }
-}
-
-fun uploadGeneratedFiles(
-    cdkVersion: Version?,
-    baseDir: File
-) = runBlocking {
-    cdkModuleList.map { module ->
-        launch(Dispatchers.IO) {
-            uploadGeneratedFile(
-                cdkVersion,
-                module,
-                File(baseDir, module)
+    private fun runGeneratorsForUnhandledCdkVersions(
+        targetDir: File
+    ) {
+        PackageManager.unhandledCdkModulesForVersions.keys.forEach {
+            runGeneratorForVersion(
+                cdkVersion = it,
+                targetDir = targetDir
             )
         }
-    }.joinAll()
-}
-
-fun uploadGeneratedFile(
-    cdkVersion: Version?,
-    cdkModule: String,
-    baseDir: File
-): Version {
-    val latestDependVersion = latestDependedCdkVersions.getValue(cdkModule)
-    val targetCdkVersion =
-        (if (cdkVersion != null && cdkVersion > latestDependVersion) cdkVersion else latestDependVersion).toString()
-    val targetDir = File(baseDir, targetCdkVersion)
-    println("==========".repeat(8))
-    val exitCode = ProcessBuilder("gradle", "-S", "bintrayUpload").run {
-        setupCommand(targetDir)
-    }.waitFor()
-    println("==========".repeat(8))
-    if (exitCode != 0) throw RuntimeException("Process exited with non-zero code: $exitCode. target module is $cdkModule:$targetCdkVersion")
-    println("Upload for $cdkModule:$targetCdkVersion have done.")
-    return Version(targetCdkVersion)
-}
-
-fun generateAndUploadPlatformModule(
-    cdkModuleList: List<String>,
-    cdkVersion: Version,
-    projectVersion: String,
-    baseDir: File,
-    bintrayUser: String,
-    bintrayApiKey: String
-) {
-    val targetDir = File(baseDir, cdkVersion.toString())
-    targetDir.mkdirs()
-    File(targetDir, "build.gradle.kts").apply {
-        createNewFile()
-        writeText(
-            platformBuildGradleKts(
-                cdkModuleList,
-                cdkVersion.toString(),
-                projectVersion,
-                bintrayUser,
-                bintrayApiKey
-            )
-        )
     }
-    File(targetDir, "settings.gradle").apply {
-        createNewFile()
-        writeText(platformSettingsGradleKts())
+
+    private fun runGeneratorForVersion(
+        cdkVersion: Version,
+        targetDir: File
+    ) {
+        println("Start generation and build for cdk version $cdkVersion")
+        val executor = DefaultExecutor()
+        try {
+            executor.setExitValue(0)
+            executor.workingDirectory = File(targetDir, cdkVersion.toString())
+            executor.execute(CommandLine.parse("gradle -S generateAll build $parallelIfNotCi"))
+            executor.watchdog
+        } catch (e: Exception) {
+            throw e
+        }
+        println("Completed generation and build for cdk version $cdkVersion")
     }
-    println("==========".repeat(8))
-    val exitCode = ProcessBuilder("gradle", "-S", "bintrayUpload").run {
-        setupCommand(targetDir)
-    }.waitFor()
-    println("==========".repeat(8))
-    if (exitCode != 0) throw RuntimeException("Process exited with non-zero code: $exitCode. target module is gradle-platform:$cdkVersion")
-    println("Upload for gradle-platform:$cdkVersion have done.")
-}
 
-private fun getRootBuildGradleKtsFileText(
-    projectVersion: String,
-    cdkVersion: String,
-    cdkModule: String,
-    kotlinVersion: String,
-    bintrayUser: String,
-    bintrayApiKey: String
-): String = """
-import org.w3c.dom.Node
-import com.jfrog.bintray.gradle.BintrayExtension
-import org.jetbrains.kotlin.gradle.plugin.KotlinPluginWrapper
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
-plugins {
-    kotlin("jvm") version "$kotlinVersion"
-    id("maven-publish")
-    id("com.jfrog.bintray") version "1.8.4"
-}
-
-allprojects {
-    group = "jp.justincase.aws-cdk-kotlin-dsl"
-    version = "$cdkVersion-${projectVersion.split('-')[1]}"
-    
-    repositories {
-        mavenCentral()
-        mavenLocal()
+    fun publishForUnhandledCdkVersions(
+        targetDir: File
+    ) {
+        PackageManager.unhandledCdkModulesForVersions.keys.forEach { version ->
+            publishForVersion(version, targetDir)
+        }
     }
-}
 
-subprojects {
-    apply<KotlinPluginWrapper>()
-    tasks.withType<KotlinCompile> {
-        kotlinOptions.jvmTarget = "1.8"
+    fun publishForLatestVersion(
+        targetDir: File
+    ) {
+        PackageManager.modulesForLatestCdkVersions.keys.forEach { version: Version ->
+            publishForVersion(version, targetDir)
+        }
     }
-    
-    dependencies {
-        implementation(kotlin("stdlib"))
-        implementation("jp.justincase.aws-cdk-kotlin-dsl:dsl-common:${projectVersion.split('-')[1]}")
+
+    private fun publishForVersion(
+        cdkVersion: Version,
+        targetDir: File
+    ) {
+        println("Start publishing for cdk version $cdkVersion")
+        val executor = DefaultExecutor()
+        try {
+            executor.setExitValue(0)
+            executor.workingDirectory = File(targetDir, cdkVersion.toString())
+            executor.execute(CommandLine.parse("gradle -S publishAll $parallelIfNotCi"))
+        } catch (e: Exception) {
+            throw e
+        }
+        println("Completed publishing for cdk version $cdkVersion")
     }
-}
 
-tasks.withType<KotlinCompile> {
-        kotlinOptions.jvmTarget = "1.8"
-}
+    private val parallelIfNotCi: String by lazy { if (!ci) "--parallel" else "" }
 
-publishing {
-    publications {
-        register("maven", MavenPublication::class.java) {
-            groupId = project.group as String
-            artifactId = project.name
-            version = project.version as String
+    // Build File Templates
+
+    private fun `get root build-gradle-kts file as text`(
+        kotlinVersion: String,
+        cdkVersion: String,
+        projectVersion: String,
+        modules: List<String>
+    ) = """
+        import org.w3c.dom.Node
+        import com.jfrog.bintray.gradle.BintrayExtension
+        import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
+        plugins {
+            kotlin("jvm") version "$kotlinVersion"
+            id("maven-publish")
+            id("com.jfrog.bintray") version "1.8.4"
+        }
+
+        allprojects {
+            group = "jp.justincase.aws-cdk-kotlin-dsl"
+            version = "$cdkVersion-$projectVersion"
             
-            from(project(":generated").components["java"])
-            artifact(tasks.getByPath(":generated:sourcesJar"))
-            
-            pom.withXml {
-                val doc = this.asElement().ownerDocument
-                fun Node.addDependency(groupId: String, artifactId: String, version: String) {
-                    appendChild(doc.createElement("dependency")).apply {
-                        appendChild(doc.createElement("groupId").apply { textContent = groupId })
-                        appendChild(doc.createElement("artifactId").apply { textContent = artifactId })
-                        appendChild(doc.createElement("version").apply { textContent = version })
-                        appendChild(doc.createElement("scope").apply { textContent = "compile" })
-                    }
+            repositories {
+                mavenCentral()
+                mavenLocal()
+            }
+        }
+
+        tasks.withType<KotlinCompile> {
+                kotlinOptions.jvmTarget = "1.8"
+        }
+
+        tasks.register("publishAll") {
+            ${modules.joinToString(separator = "\n\t") { "dependsOn(\"$it:bintrayUpload\")" }}
+            dependsOn(":platform:bintrayUpload")
+        }
+        
+        tasks.register("generateAll") {
+            ${modules.joinToString(separator = "\n\t") { "dependsOn(\"$it-gen:run\")" }}
+        }
+    """.trimIndent()
+
+    private fun `get root settings-gradle-kts file as text`(
+        modules: List<String>
+    ) = """
+        rootProject.name = "aws-cdk-kotlin-dsl"
+        ${modules.joinToString(separator = "\n") { "include(\"$it-gen\", \"$it\")" }}
+        include("platform")
+    """.trimIndent()
+
+    private fun `get generator build-gradle-kts file as text`(
+        cdkModule: String,
+        cdkVersion: String,
+        projectVersion: String,
+        targetDir: File
+    ) = """
+        plugins {
+            application
+        }
+
+        application {
+            mainClassName = "jp.justincase.cdkdsl.generator.MainKt"
+        }
+
+        dependencies {
+            runtimeOnly("jp.justincase:cdk-dsl-generator:$projectVersion") {
+                exclude(group = "software.amazon.awscdk")
+            }
+            runtimeOnly("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
+            // cdk-core is required to run generator
+            runtimeOnly("software.amazon.awscdk", "core", "$cdkVersion")
+        }
+
+        tasks.withType<JavaExec> {
+            args("$cdkModule", "${targetDir.absolutePath.replace("\\", "\\\\")}")
+        }
+    """.trimIndent()
+
+    private fun `get generated build-gradle-kts file as text`(
+        cdkModule: String,
+        cdkVersion: String,
+        bintrayUser: String,
+        bintrayApiKey: String,
+        projectVersion: String
+    ) = """
+        plugins {
+            id("java-library")
+            id("maven-publish")
+            id("com.jfrog.bintray")
+            kotlin("jvm")
+        }
+
+        tasks.register<Jar>("sourcesJar") {
+            from(sourceSets.main.get().allSource)
+            archiveClassifier.set("sources")
+        }
+        
+        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+            kotlinOptions.jvmTarget = "1.8"
+        }
+
+        dependencies {
+            implementation(kotlin("stdlib"))
+            implementation("jp.justincase.aws-cdk-kotlin-dsl:dsl-common:$projectVersion")
+            api("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
+            implementation("software.amazon.awscdk", "core", "$cdkVersion")
+            ${PackageManager.moduleDependencyMap.getValue(cdkModule).joinToString("\n\t") { "api(project(\":$it\"))" }}
+        }
+        
+        publishing {
+            publications {
+                register("maven", MavenPublication::class.java) {
+                    groupId = project.group.toString()
+                    artifactId = project.name
+                    version = project.version.toString()
+                    
+                    from(project.components["java"])
+                    artifact(tasks.getByPath(":$cdkModule:sourcesJar"))
                 }
-                val parent = asElement().getElementsByTagName("dependencies").item(0)
-    
-                ${moduleDependencyMap.getValue(cdkModule).joinToString("\n                ") {
-    """parent.addDependency("jp.justincase.aws-cdk-kotlin-dsl", "$it", "$cdkVersion-${projectVersion.split('-')[1]}")"""
-}}
-                parent.addDependency("jp.justincase.aws-cdk-kotlin-dsl", "dsl-common", "${projectVersion.split('-')[1]}")
             }
         }
-    }
-}
-
-bintray {
-    key = "$bintrayApiKey"
-    user = "$bintrayUser"
-    setPublications("maven")
-    publish = true
-    pkg(delegateClosureOf<BintrayExtension.PackageConfig> {
-        userOrg = "justincase"
-            repo = "aws-cdk-kotlin-dsl"
-            name = "$cdkModule"
-            version(delegateClosureOf<BintrayExtension.VersionConfig> {
-            name = project.version as String
-        })
-    }) 
-}
-"""
-
-private fun getGeneratorBuildGradleKtsFileText(
-    projectVersion: String,
-    cdkModule: String,
-    cdkVersion: String,
-    targetDir: File
-): String = """
-
-plugins {
-    id("application")
-}
-
-application {
-    mainClassName = "jp.justincase.cdkdsl.generator.MainKt"
-}
-
-dependencies {
-    runtimeOnly("jp.justincase:cdk-dsl-generator:$projectVersion") {
-        exclude(group = "software.amazon.awscdk")
-    }
-    runtimeOnly("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
-    // cdk-code is required to run generator
-    runtimeOnly("software.amazon.awscdk", "core", "$cdkVersion")
-}
-
-tasks.withType<JavaExec> {
-    args("$cdkModule", "${targetDir.absolutePath.replace("\\", "\\\\")}")
-}
-"""
-
-private fun getGeneratedBuildGradleKtsFileText(
-    cdkModule: String,
-    cdkVersion: String
-): String = """
-plugins {
-    id("java-library")
-}
-
-tasks.register<Jar>("sourcesJar") {
-    from(sourceSets.main.get().allSource)
-    archiveClassifier.set("sources")
-}
-
-dependencies {
-    api("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
-    implementation("software.amazon.awscdk", "core", "$cdkVersion")
-}
-"""
-
-private fun settingsGradleFileText(module: String) = """
-rootProject.name = "$module"
-include 'generator'
-include 'generated'
-"""
-
-private fun platformBuildGradleKts(
-    moduleList: List<String>,
-    version: String,
-    projectVersion: String,
-    bintrayUser: String,
-    bintrayApiKey: String
-) = """
-group = "jp.justincase.aws-cdk-kotlin-dsl"
-version = "$version-${projectVersion.split("-")[1]}"
-
-plugins {
-    `java-platform`
-    id("maven-publish")
-    id("com.jfrog.bintray") version "1.8.4"
-}
-
-dependencies {
-    constraints {
-        ${moduleList.joinToString(separator = ";") {
-    "api(\"jp.justincase.aws-cdk-kotlin-dsl:$it:\${project.version}\")"
-}}
-    }
-}
-
-publishing {
-    publications {
-        create<MavenPublication>("platform") {
-            from(components["javaPlatform"])
+        
+        bintray {
+            user = "$bintrayUser"
+            key = "$bintrayApiKey"
+            setPublications("maven")
+            publish = true
+            pkg(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.PackageConfig> {
+                userOrg = "justincase"
+                repo = "aws-cdk-kotlin-dsl"
+                name = "$cdkModule"
+                version(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.VersionConfig> {
+                    name = project.version.toString()
+                })
+            })
         }
-    }
+    """.trimIndent()
+
+    private fun `get platform build-gradle-kts file as text`(
+        bintrayUser: String,
+        bintrayApiKey: String,
+        modules: List<String>
+    ) = """
+        plugins {
+            `java-platform`
+            id("maven-publish")
+            id("com.jfrog.bintray")
+        }
+        
+        dependencies {
+            constraints {
+                ${modules.joinToString(separator = "\n") { "api(\"jp.justincase.aws-cdk-kotlin-dsl:$it:\${project.version}\")" }}
+            }
+        }
+        
+        publishing {
+            publications {
+                create<MavenPublication>("platform") {
+                    from(components["javaPlatform"])
+                }
+            }
+        }
+        
+        bintray {
+            user = "$bintrayUser"
+            key = "$bintrayApiKey"
+            setPublications("platform")
+            publish = true
+            pkg(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.PackageConfig> {
+                userOrg = "justincase"
+                repo = "aws-cdk-kotlin-dsl"
+                name = "gradle-platform"
+                version(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.VersionConfig> {
+                    name = project.version.toString()
+                })
+            })
+        }
+    """.trimIndent()
 }
-
-val bintrayUser = "$bintrayUser"
-val bintrayKey = "$bintrayApiKey"
-
-bintray {
-    user = bintrayUser
-    key = bintrayKey
-    setPublications("platform")
-    publish = true
-    pkg(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.PackageConfig> {
-        userOrg = "justincase"
-        repo = "aws-cdk-kotlin-dsl"
-        name = "gradle-platform"
-        version(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.VersionConfig> {
-            name = project.version as String
-        })
-    })
-}
-
-"""
-
-private fun platformSettingsGradleKts() = """
-rootProject.name = "gradle-platform"
-"""
