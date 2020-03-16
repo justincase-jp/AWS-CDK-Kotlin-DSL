@@ -9,8 +9,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import software.amazon.awscdk.core.Construct
 import java.io.File
-import java.lang.reflect.Constructor
-import java.lang.reflect.Parameter
 import javax.annotation.Generated
 
 object ConstructorFunctionGenerator {
@@ -36,17 +34,8 @@ object ConstructorFunctionGenerator {
         }
     }
 
-    private fun isPropertyArg(parameter: Parameter): Boolean =
-        parameter.type != Construct::class.java
-            && parameter.type != java.lang.String::class.java
-            && !parameter.type.isPrimitive
-            && parameter.type.declaredClasses.any { it.simpleName == "Builder" }
-
-    @Suppress("unused")
     private sealed class InternalGenerator {
         abstract suspend fun generate(clazz: Class<*>): FunSpec?
-
-        fun getPropClass(constructor: Constructor<*>) = constructor.parameters.single(::isPropertyArg).type!!
 
         fun getBuilderScopeClassName(
             clazz: Class<*>

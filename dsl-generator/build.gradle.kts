@@ -25,11 +25,11 @@ repositories {
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.4")
     implementation(project(":dsl-common"))
 
-    implementation("com.squareup:kotlinpoet:1.3.0")
-    implementation("com.google.guava:guava:28.0-jre")
+    implementation("com.squareup:kotlinpoet:1.5.0")
+    implementation("com.google.guava:guava:28.2-jre")
     // AWS CDK
     implementation("software.amazon.awscdk", "lambda", awsCdkVersion)
     implementation("software.amazon.awscdk", "sam", awsCdkVersion)
@@ -37,4 +37,5 @@ dependencies {
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     kotlinOptions.jvmTarget = "1.8"
+    kotlinOptions.freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
 }
