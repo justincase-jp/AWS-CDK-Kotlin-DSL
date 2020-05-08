@@ -31,7 +31,7 @@ object BuildFileGenerator {
         bintrayUser: String,
         bintrayApiKey: String
     ) {
-        PackageManager.modulesForLatestCdkVersions.forEach { (version, modules) ->
+        PackageManager.modulesForLatestCdkVersions.let { (version, modules) ->
             generateBuildFilesForVersion(
                 kotlinVersion = kotlinVersion,
                 cdkVersion = version,
@@ -190,7 +190,7 @@ object BuildFileGenerator {
     fun publishForLatestVersion(
         targetDir: File
     ) {
-        PackageManager.modulesForLatestCdkVersions.keys.forEach { version: Version ->
+        PackageManager.modulesForLatestCdkVersions.first.let { version: Version ->
             publishForVersion(version, targetDir)
         }
     }

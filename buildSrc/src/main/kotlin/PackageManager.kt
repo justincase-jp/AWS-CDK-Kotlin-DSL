@@ -46,7 +46,7 @@ object PackageManager {
                     ".pom"
                 )
             ) && Version(it.latestVersion) >= leastVersion
-        }.map { it.a }.toSet()
+        }.map { it.a }.filter { "monocdk" !in it }.toSet()
     }
 
     val latestGeneratedCdkVersions: Map<String, Version> by lazy {
@@ -98,7 +98,7 @@ object PackageManager {
         cdkVersions.mapValues { pair -> pair.value.last() }
     }
 
-    val modulesForLatestCdkVersions: Map<Version, Set<String>> by lazy {
+    val modulesForLatestCdkVersions: Pair<Version, Set<String>> by lazy {
         val map = mutableMapOf<Version, MutableSet<String>>()
         latestCdkVersions.forEach { (module, version) ->
             if (map.containsKey(version)) {
@@ -107,7 +107,7 @@ object PackageManager {
                 map[version] = mutableSetOf(module)
             }
         }
-        map
+        map.toSortedMap().run { lastKey() to getValue(lastKey()) }
     }
 
     val unhandledCdkVersions: Map<String, List<Version>> by lazy {
