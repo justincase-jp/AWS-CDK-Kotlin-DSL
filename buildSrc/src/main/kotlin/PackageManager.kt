@@ -46,7 +46,7 @@ object PackageManager {
                     ".pom"
                 )
             ) && Version(it.latestVersion) >= leastVersion
-        }.map { it.a }.toSet()
+        }.map { it.a }.filter { "monocdk" !in it }.toSet()
     }
 
     val latestGeneratedCdkVersions: Map<String, Version> by lazy {
