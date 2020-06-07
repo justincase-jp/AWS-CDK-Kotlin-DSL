@@ -99,9 +99,9 @@ object PackageManager {
         cdkVersions.forEach { (module, versions) ->
             versions.forEach {
                 if (map.containsKey(it)) {
-                    map[it] = mutableSetOf(module)
-                } else {
                     map.getValue(it) += module
+                } else {
+                    map[it] = mutableSetOf(module)
                 }
             }
         }
