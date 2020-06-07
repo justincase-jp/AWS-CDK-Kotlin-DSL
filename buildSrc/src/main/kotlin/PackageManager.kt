@@ -94,6 +94,20 @@ object PackageManager {
         }
     }
 
+    val cdkModulesForVersion: Map<Version, Set<String>> by lazy {
+        val map = mutableMapOf<Version, MutableSet<String>>()
+        cdkVersions.forEach { (module, versions) ->
+            versions.forEach {
+                if (map.containsKey(it)) {
+                    map[it] = mutableSetOf(module)
+                } else {
+                    map.getValue(it) += module
+                }
+            }
+        }
+        map
+    }
+
     val latestCdkVersions: Map<String, Version> by lazy {
         cdkVersions.mapValues { pair -> pair.value.last() }
     }
