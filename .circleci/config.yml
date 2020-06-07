@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: gradle:6.0.1-jdk8
+      - image: gradle:6.5-jdk8
     steps:
       - checkout
       - run: gradle -S generateAndBuildForLatestVersion
@@ -11,7 +11,7 @@ jobs:
 
   test:
     docker:
-      - image: gradle:6.0.1-jdk8
+      - image: gradle:6.5-jdk8
     steps:
       - checkout
       - run: gradle -S test
@@ -19,7 +19,7 @@ jobs:
 
   deployForCdk:
     docker:
-      - image: gradle:6.0.1-jdk8
+      - image: gradle:6.5-jdk8
     steps:
       - checkout
       - run: |
@@ -30,7 +30,7 @@ jobs:
 
   deployForUpdate:
     docker:
-      - image: gradle:5.6.0-jdk8
+      - image: gradle:6.5-jdk8
     steps:
       - checkout
       - run: gradle -S publishForLatestVersion
