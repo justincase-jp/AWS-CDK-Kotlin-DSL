@@ -65,9 +65,17 @@ tasks {
             }
         }
 
+        val createPackages = register("createBintrayPackages") {
+            group = "cdk-dsl"
+            doLast {
+                PackageManager.createBintrayPackages(bintrayUser, bintrayKey)
+            }
+        }
+
         register("publishForLatestVersion") {
             group = "cdk-dsl"
             dependsOn(genLatest)
+            dependsOn(createPackages)
             doLast {
                 BuildFileGenerator.publishForLatestVersion(File(buildDir, "cdkdsl"))
             }
@@ -76,6 +84,7 @@ tasks {
         register("publishForUnhandledCdkVersions") {
             group = "cdk-dsl"
             dependsOn(genUnhandled)
+            dependsOn(createPackages)
             doLast {
                 BuildFileGenerator.publishForUnhandledCdkVersions(File(buildDir, "cdkdsl"))
             }

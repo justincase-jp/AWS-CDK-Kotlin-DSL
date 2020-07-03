@@ -39,7 +39,8 @@ object BuildFileGenerator {
                 targetDir = targetDir,
                 bintrayUser = bintrayUser,
                 bintrayApiKey = bintrayApiKey,
-                moduleList = PackageManager.cdkModulesForVersion.getValue(version).toList()
+                generateModules = PackageManager.cdkModulesForVersion.getValue(version).toList(),
+                publishModules = PackageManager.unhandledCdkModulesForVersions.getValue(version).toList()
             )
             runGeneratorForVersion(
                 version,
@@ -63,7 +64,8 @@ object BuildFileGenerator {
                 targetDir = targetDir,
                 bintrayUser = bintrayUser,
                 bintrayApiKey = bintrayApiKey,
-                moduleList = PackageManager.cdkModulesForVersion.getValue(version).toList()
+                generateModules = PackageManager.cdkModulesForVersion.getValue(version).toList(),
+                publishModules = PackageManager.unhandledCdkModulesForVersions.getValue(version).toList()
             )
         }
     }
@@ -75,7 +77,8 @@ object BuildFileGenerator {
         targetDir: File,
         bintrayUser: String,
         bintrayApiKey: String,
-        moduleList: List<String>
+        generateModules: List<String>,
+        publishModules: List<String>
     ) {
         val generateDir = File(targetDir, cdkVersion.toString())
         generateDir.mkdirs()
@@ -88,7 +91,8 @@ object BuildFileGenerator {
                     kotlinVersion = kotlinVersion,
                     cdkVersion = cdkVersion.toString(),
                     projectVersion = projectVersion,
-                    modules = moduleList
+                    generateModules = generateModules,
+                    publishModules = publishModules
                 )
             )
         }
@@ -97,13 +101,13 @@ object BuildFileGenerator {
             createNewFile()
             writeText(
                 `get root settings-gradle-kts file as text`(
-                    modules = moduleList
+                    modules = generateModules
                 )
             )
         }
 
         // for each cdk module
-        moduleList.forEach { module ->
+        generateModules.forEach { module ->
             val moduleDir = File(generateDir, module)
             moduleDir.mkdirs()
             // generated build.gradle.kts
@@ -144,7 +148,7 @@ object BuildFileGenerator {
                     `get platform build-gradle-kts file as text`(
                         bintrayUser = bintrayUser,
                         bintrayApiKey = bintrayApiKey,
-                        modules = moduleList
+                        modules = generateModules
                     )
                 )
             }
@@ -219,7 +223,8 @@ object BuildFileGenerator {
         kotlinVersion: String,
         cdkVersion: String,
         projectVersion: String,
-        modules: List<String>
+        generateModules: List<String>,
+        publishModules: List<String>
     ) = """
         import org.w3c.dom.Node
         import com.jfrog.bintray.gradle.BintrayExtension
@@ -246,12 +251,12 @@ object BuildFileGenerator {
         }
 
         tasks.register("publishAll") {
-            ${modules.joinToString(separator = "\n\t") { "dependsOn(\"$it:bintrayUpload\")" }}
+            ${publishModules.joinToString(separator = "\n\t") { "dependsOn(\"$it:bintrayUpload\")" }}
             dependsOn(":platform:bintrayUpload")
         }
         
         tasks.register("generateAll") {
-            ${modules.joinToString(separator = "\n\t") { "dependsOn(\"$it-gen:run\")" }}
+            ${generateModules.joinToString(separator = "\n\t") { "dependsOn(\"$it-gen:run\")" }}
         }
     """.trimIndent()
 
