@@ -35,7 +35,10 @@ object PackageManager {
     private val leastVersion = Version("1.20.0")
 
     val cdkModules: Set<String> by lazy {
+        println("Start to get list of CDK modules")
+        println(requestUrl)
         val response = runBlocking { client.get<String>(requestUrl) }
+        println("Completed getting list of CDK modules")
         val obj = jacksonObjectMapper().readValue<ResponseJson>(response)
         obj.response.docs.filter {
             it.ec.containsAll(
@@ -49,8 +52,10 @@ object PackageManager {
 
     val bintrayPackageLatestVersion: Map<String, Version> by lazy {
         val job = GlobalScope.async {
+            println("Start to get latest package version from bintray")
             cdkModules.asFlow().map { module ->
                 val bintrayVersionApiUrl = "$bintrayApiBaseUrl/$module/versions/_latest"
+                println(bintrayVersionApiUrl)
                 val response = withContext(Dispatchers.IO) {
                     client.get<HttpResponse>(bintrayVersionApiUrl)
                 }
@@ -62,6 +67,7 @@ object PackageManager {
                 module to Version(cdkVersionString)
             }.toList().toMap()
         }
+        println("Completed getting latest package version from bintray")
         runBlocking {
             job.await()
         }
@@ -69,10 +75,12 @@ object PackageManager {
 
     val cdkVersions: Map<String, List<Version>> by lazy {
         runSuspend {
+            println("Start to get version list of CDK modules")
             cdkModules.asFlow()
                 .map { module ->
                     val cdkMavenMetadataUrl =
                         "https://repo1.maven.org/maven2/software/amazon/awscdk/$module/maven-metadata.xml"
+                    println(cdkMavenMetadataUrl)
                     val response = withContext(Dispatchers.IO) {
                         client.get<HttpResponse>(cdkMavenMetadataUrl)
                     }
@@ -83,7 +91,10 @@ object PackageManager {
                     module to doc.getElementsByTagName("versions").item(0).childNodes.asList()
                         .filter { it.nodeName == "version" }
                         .map { Version(it.textContent) }
+                        .filter { it > leastVersion }
                 }.toList().toMap()
+        }.apply {
+            println("Completed getting version list of CDK modules")
         }
     }
 
@@ -139,11 +150,13 @@ object PackageManager {
 
     val moduleDependencyMap: Map<Version, Map<String, List<String>>> by lazy {
         runSuspend {
+            println("Start to get dependencies of CDK modules")
             cdkModulesForVersion.toList().asFlow().map { (version, modules) ->
                 version to modules.map { module ->
                     val targetUrl =
                         "https://repo1.maven.org/maven2/software/amazon/awscdk/$module/$version/$module-${
                         version}.pom"
+                    println(targetUrl)
                     val doc = withContext(Dispatchers.IO) {
                         val response = client.get<HttpResponse>(targetUrl)
 
@@ -160,7 +173,9 @@ object PackageManager {
                     }.filter { it.groupId == "software.amazon.awscdk" }.map { it.artifactId }
                     module to list
                 }.toMap()
-            }.toList().toMap()
+            }.toList().toMap().apply {
+                println("Completed getting dependencies of CDK modules")
+            }
         }
     }
 
