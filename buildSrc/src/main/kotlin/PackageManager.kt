@@ -137,27 +137,29 @@ object PackageManager {
         map
     }
 
-    val moduleDependencyMap: Map<String, List<String>> by lazy {
+    val moduleDependencyMap: Map<Version, Map<String, List<String>>> by lazy {
         runSuspend {
-            latestCdkVersions.keys.asFlow().map { module ->
-                val version = latestCdkVersions.getValue(module).toString()
-                val targetUrl =
-                    "https://repo1.maven.org/maven2/software/amazon/awscdk/$module/$version/$module-${
-                    version}.pom"
-                val doc = withContext(Dispatchers.IO) {
-                    val response = client.get<HttpResponse>(targetUrl)
+            cdkModulesForVersion.toList().asFlow().map { (version, modules) ->
+                version to modules.map { module ->
+                    val targetUrl =
+                        "https://repo1.maven.org/maven2/software/amazon/awscdk/$module/$version/$module-${
+                        version}.pom"
+                    val doc = withContext(Dispatchers.IO) {
+                        val response = client.get<HttpResponse>(targetUrl)
 
-                    check(response.status == HttpStatusCode.OK) { "${response.status} on accessing $targetUrl" }
-                    DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(response.content.toInputStream())
-                }
-                val list = doc.getElementsByTagName("dependency").asList().map { node ->
-                    PomArtifact(
-                        node.childNodes.asList().single { it.nodeName == "groupId" }.textContent,
-                        node.childNodes.asList().single { it.nodeName == "artifactId" }.textContent,
-                        node.childNodes.asList().single { it.nodeName == "version" }.textContent
-                    )
-                }.filter { it.groupId == "software.amazon.awscdk" }.map { it.artifactId }
-                module to list
+                        check(response.status == HttpStatusCode.OK) { "${response.status} on accessing $targetUrl" }
+                        DocumentBuilderFactory.newInstance().newDocumentBuilder()
+                            .parse(response.content.toInputStream())
+                    }
+                    val list = doc.getElementsByTagName("dependency").asList().map { node ->
+                        PomArtifact(
+                            node.childNodes.asList().single { it.nodeName == "groupId" }.textContent,
+                            node.childNodes.asList().single { it.nodeName == "artifactId" }.textContent,
+                            node.childNodes.asList().single { it.nodeName == "version" }.textContent
+                        )
+                    }.filter { it.groupId == "software.amazon.awscdk" }.map { it.artifactId }
+                    module to list
+                }.toMap()
             }.toList().toMap()
         }
     }

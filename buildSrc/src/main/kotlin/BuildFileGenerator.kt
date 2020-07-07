@@ -116,7 +116,7 @@ object BuildFileGenerator {
                 writeText(
                     `get generated build-gradle-kts file as text`(
                         cdkModule = module,
-                        cdkVersion = cdkVersion.toString(),
+                        cdkVersion = cdkVersion,
                         bintrayUser = bintrayUser,
                         bintrayApiKey = bintrayApiKey,
                         projectVersion = projectVersion
@@ -298,7 +298,7 @@ object BuildFileGenerator {
 
     private fun `get generated build-gradle-kts file as text`(
         cdkModule: String,
-        cdkVersion: String,
+        cdkVersion: Version,
         bintrayUser: String,
         bintrayApiKey: String,
         projectVersion: String
@@ -324,7 +324,8 @@ object BuildFileGenerator {
             implementation("jp.justincase.aws-cdk-kotlin-dsl:dsl-common:$projectVersion")
             api("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
             implementation("software.amazon.awscdk", "core", "$cdkVersion")
-            ${PackageManager.moduleDependencyMap.getValue(cdkModule).joinToString("\n\t") { "api(project(\":$it\"))" }}
+            ${PackageManager.moduleDependencyMap.getValue(cdkVersion).getValue(cdkModule)
+        .joinToString("\n\t") { "api(project(\":$it\"))" }}
         }
         
         publishing {
