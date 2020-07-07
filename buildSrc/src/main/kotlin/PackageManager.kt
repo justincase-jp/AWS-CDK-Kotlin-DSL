@@ -1,9 +1,6 @@
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import data.BintrayCreatePackageRequestJson
-import data.PomArtifact
-import data.ResponseJson
-import data.Version
+import data.*
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.features.auth.Auth
@@ -11,6 +8,7 @@ import io.ktor.client.features.auth.providers.basic
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.response.HttpResponse
+import io.ktor.client.response.readText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.TextContent
@@ -49,25 +47,20 @@ object PackageManager {
         }.map { it.a }.filter { "monocdk" !in it }.toSet()
     }
 
-    val latestGeneratedCdkVersions: Map<String, Version> by lazy {
+    val bintrayPackageLatestVersion: Map<String, Version> by lazy {
         val job = GlobalScope.async {
-            cdkModules.asFlow()
-                .map { module ->
-                    val dslMavenMetadataUrl =
-                        "https://dl.bintray.com/justincase/aws-cdk-kotlin-dsl/jp/justincase/aws-cdk-kotlin-dsl/$module/maven-metadata.xml"
-                    val response = withContext(Dispatchers.IO) {
-                        client.get<HttpResponse>(dslMavenMetadataUrl)
-                    }
-                    if (response.status != HttpStatusCode.OK) {
-                        return@map module to leastVersion
-                    }
-                    val doc = withContext(Dispatchers.IO) {
-                        DocumentBuilderFactory.newInstance().newDocumentBuilder()
-                            .parse(response.content.toInputStream())
-                    }
-                    val lastVersionString = doc.getElementsByTagName("latest").item(0).textContent.split('-')[0]
-                    module to Version(lastVersionString)
-                }.toList().toMap()
+            cdkModules.asFlow().map { module ->
+                val bintrayVersionApiUrl = "$bintrayApiBaseUrl/$module/versions/_latest"
+                val response = withContext(Dispatchers.IO) {
+                    client.get<HttpResponse>(bintrayVersionApiUrl)
+                }
+                if (response.status != HttpStatusCode.OK) {
+                    return@map module to leastVersion
+                }
+                val versionJson = jacksonObjectMapper().readValue<BintrayVersionJson>(response.readText())
+                val cdkVersionString = versionJson.name.split('-')[0]
+                module to Version(cdkVersionString)
+            }.toList().toMap()
         }
         runBlocking {
             job.await()
@@ -126,7 +119,7 @@ object PackageManager {
 
     val unhandledCdkVersions: Map<String, List<Version>> by lazy {
         cdkVersions.mapValues { pair ->
-            pair.value.filter { it > latestGeneratedCdkVersions.getValue(pair.key) }
+            pair.value.filter { it > bintrayPackageLatestVersion.getValue(pair.key) }
         }
     }
 
