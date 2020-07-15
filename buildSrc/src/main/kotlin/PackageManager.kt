@@ -3,21 +3,22 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import data.*
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.features.HttpTimeout
 import io.ktor.client.features.auth.Auth
 import io.ktor.client.features.auth.providers.basic
 import io.ktor.client.request.get
 import io.ktor.client.request.post
-import io.ktor.client.response.HttpResponse
-import io.ktor.client.response.readText
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.readText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.TextContent
 import io.ktor.util.KtorExperimentalAPI
+import io.ktor.utils.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.io.jvm.javaio.toInputStream
 import org.w3c.dom.Node
 import org.w3c.dom.NodeList
 import javax.xml.parsers.DocumentBuilderFactory
@@ -30,14 +31,26 @@ object PackageManager {
     private const val bintrayApiBaseUrl = "https://api.bintray.com/packages/justincase/aws-cdk-kotlin-dsl"
 
     @UseExperimental(KtorExperimentalAPI::class)
-    private val client = HttpClient(CIO)
+    private val client = HttpClient(CIO) {
+        install(HttpTimeout)
+    }
 
     private val leastVersion = Version("1.20.0")
 
     val cdkModules: Set<String> by lazy {
         println("Start to get list of CDK modules")
         println(requestUrl)
-        val response = runBlocking { client.get<String>(requestUrl) }
+        val response = runBlocking {
+            val result = kotlin.runCatching {
+                client.get<String>(requestUrl)
+            }
+            while (result.isFailure) {
+                result.recover {
+                    client.get(requestUrl)
+                }
+            }
+            result.getOrThrow()
+        }
         println("Completed getting list of CDK modules")
         val obj = jacksonObjectMapper().readValue<ResponseJson>(response)
         obj.response.docs.filter {
@@ -151,11 +164,11 @@ object PackageManager {
     val moduleDependencyMap: Map<Version, Map<String, List<String>>> by lazy {
         runSuspend {
             println("Start to get dependencies of CDK modules")
-            cdkModulesForVersion.toList().asFlow().map { (version, modules) ->
+            (unhandledCdkModulesForVersions + modulesForLatestCdkVersions).toList().asFlow().map { (version, modules) ->
+                println("version: $version, module count: ${modules.size}.")
                 version to modules.map { module ->
                     val targetUrl =
-                        "https://repo1.maven.org/maven2/software/amazon/awscdk/$module/$version/$module-${
-                        version}.pom"
+                        "https://repo1.maven.org/maven2/software/amazon/awscdk/$module/$version/$module-${version}.pom"
                     println(targetUrl)
                     val doc = withContext(Dispatchers.IO) {
                         val response = client.get<HttpResponse>(targetUrl)

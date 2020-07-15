@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.3.60"
+    `embedded-kotlin`
 }
 
 repositories {
@@ -13,8 +13,8 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib-jdk8", KotlinVersion.CURRENT.toString()))
-    implementation("io.ktor:ktor-client-cio:1.2.5")
-    implementation("io.ktor:ktor-client-auth-jvm:1.2.5")
+    implementation("io.ktor:ktor-client-cio:1.3.2")
+    implementation("io.ktor:ktor-client-auth-jvm:1.3.2")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.9.+")
     // https://mvnrepository.com/artifact/org.apache.commons/commons-exec
     implementation("org.apache.commons:commons-exec:1.3")
