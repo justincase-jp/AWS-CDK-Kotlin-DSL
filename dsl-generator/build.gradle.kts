@@ -6,6 +6,8 @@ plugins {
 val awsCdkVersion: String by project
 version = rootProject.version.toString().split("-")[1]
 
+val isCI = System.getenv("CI") == "true"
+
 publishing {
     publications {
         register("maven", MavenPublication::class) {
@@ -25,14 +27,15 @@ repositories {
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.4")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.9")
     implementation(project(":dsl-common"))
 
-    implementation("com.squareup:kotlinpoet:1.5.0")
+    implementation("com.squareup:kotlinpoet:1.6.0")
     implementation("com.google.guava:guava:28.2-jre")
-    // AWS CDK
-    implementation("software.amazon.awscdk", "lambda", awsCdkVersion)
-    implementation("software.amazon.awscdk", "sam", awsCdkVersion)
+    // AWS CDK, Only for dev & debug use
+    if (!isCI) {
+        implementation("software.amazon.awscdk", "appflow", awsCdkVersion)
+    }
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
