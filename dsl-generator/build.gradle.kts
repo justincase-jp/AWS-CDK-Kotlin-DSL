@@ -32,6 +32,8 @@ dependencies {
 
     implementation("com.squareup:kotlinpoet:1.6.0")
     implementation("com.google.guava:guava:28.2-jre")
+    // AWS-CDK/Core, Need to compile
+    implementation("software.amazon.awscdk", "core", awsCdkVersion)
     // AWS CDK, Only for dev & debug use
     if (!isCI) {
         implementation("software.amazon.awscdk", "appflow", awsCdkVersion)
