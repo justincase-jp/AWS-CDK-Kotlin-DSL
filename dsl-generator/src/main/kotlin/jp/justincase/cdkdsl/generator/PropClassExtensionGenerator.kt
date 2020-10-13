@@ -141,7 +141,7 @@ object PropClassExtensionGenerator {
                             handledDuplicates += name
                         }
                     } else {
-                        addStatement("${fieldName}?.let{ builder.$name(it) }")
+                        addStatement("%N?.let{ builder.%N(it) }", fieldName, name)
                     }
                 }
                 addStatement("return builder.build()")
