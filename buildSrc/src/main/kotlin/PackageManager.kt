@@ -1,22 +1,22 @@
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import data.*
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.features.HttpTimeout
-import io.ktor.client.features.auth.Auth
-import io.ktor.client.features.auth.providers.basic
-import io.ktor.client.request.get
-import io.ktor.client.request.post
-import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.readText
+import data.Version
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.features.*
+import io.ktor.client.features.auth.*
+import io.ktor.client.features.auth.providers.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.content.TextContent
-import io.ktor.util.KtorExperimentalAPI
-import io.ktor.utils.io.jvm.javaio.toInputStream
+import io.ktor.http.content.*
+import io.ktor.util.*
+import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import org.w3c.dom.Node
@@ -105,9 +105,13 @@ object PackageManager {
                         .filter { it.nodeName == "version" }
                         .map { Version(it.textContent) }
                         .filter { it > leastVersion }
+                }.filter {
+                    it.second.isNotEmpty()
                 }.toList().toMap()
-        }.apply {
+        }.let { map ->
             println("Completed getting version list of CDK modules")
+            val min = map.minBy { it.value.min()!! }!!.value.min()!!
+            map.filter { it.value.min()!! > min }
         }
     }
 
