@@ -111,7 +111,7 @@ object PackageManager {
         }.let { map ->
             println("Completed getting version list of CDK modules")
             val min = map.minBy { it.value.min()!! }!!.value.min()!!
-            map.filter { it.value.min()!! > min }
+            map.filter { it.value.min()!! >= min }
         }
     }
 
