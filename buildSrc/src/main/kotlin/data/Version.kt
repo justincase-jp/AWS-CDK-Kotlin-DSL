@@ -1,6 +1,6 @@
 package data
 
-inline class Version(val version: String) : Comparable<Version> {
+data class Version(val version: String) : Comparable<Version> {
 
     val major
         get() = version.split('-')[0].split('.')[0].trimMargin().toInt()

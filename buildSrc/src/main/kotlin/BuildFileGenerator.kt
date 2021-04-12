@@ -7,7 +7,7 @@ object BuildFileGenerator {
 
     private val ci = System.getenv("CI")?.toBoolean() == true
 
-    fun generateAndBuildForUnhandledCdkVersions(
+    suspend fun generateAndBuildForUnhandledCdkVersions(
         kotlinVersion: String,
         projectVersion: String,
         targetDir: File,
@@ -24,14 +24,14 @@ object BuildFileGenerator {
         runGeneratorsForUnhandledCdkVersions(targetDir = targetDir)
     }
 
-    fun generateAndBuildForLatestVersion(
+    suspend fun generateAndBuildForLatestVersion(
         kotlinVersion: String,
         projectVersion: String,
         targetDir: File,
         bintrayUser: String,
         bintrayApiKey: String
     ) {
-        PackageManager.modulesForLatestCdkVersions.let { (version, _) ->
+        PackageManager.modulesForLatestCdkVersions().let { (version, _) ->
             generateBuildFilesForVersion(
                 kotlinVersion = kotlinVersion,
                 cdkVersion = version,
@@ -39,8 +39,8 @@ object BuildFileGenerator {
                 targetDir = targetDir,
                 bintrayUser = bintrayUser,
                 bintrayApiKey = bintrayApiKey,
-                generateModules = PackageManager.cdkModulesForVersion.getValue(version).toList(),
-                publishModules = PackageManager.unhandledCdkModulesForVersions.getValue(version).toList()
+                generateModules = PackageManager.cdkModulesForVersion().getValue(version).toList(),
+                publishModules = PackageManager.unhandledCdkModulesForVersions().getValue(version).toList()
             )
             runGeneratorForVersion(
                 version,
@@ -49,14 +49,14 @@ object BuildFileGenerator {
         }
     }
 
-    private fun generateBuildFilesForUnhandledCdkVersions(
+    private suspend fun generateBuildFilesForUnhandledCdkVersions(
         kotlinVersion: String,
         projectVersion: String,
         targetDir: File,
         bintrayUser: String,
         bintrayApiKey: String
     ) {
-        PackageManager.unhandledCdkModulesForVersions.forEach { (version, _) ->
+        PackageManager.unhandledCdkModulesForVersions().forEach { (version, _) ->
             generateBuildFilesForVersion(
                 kotlinVersion = kotlinVersion,
                 cdkVersion = version,
@@ -64,13 +64,13 @@ object BuildFileGenerator {
                 targetDir = targetDir,
                 bintrayUser = bintrayUser,
                 bintrayApiKey = bintrayApiKey,
-                generateModules = PackageManager.cdkModulesForVersion.getValue(version).toList(),
-                publishModules = PackageManager.unhandledCdkModulesForVersions.getValue(version).toList()
+                generateModules = PackageManager.cdkModulesForVersion().getValue(version).toList(),
+                publishModules = PackageManager.unhandledCdkModulesForVersions().getValue(version).toList()
             )
         }
     }
 
-    private fun generateBuildFilesForVersion(
+    private suspend fun generateBuildFilesForVersion(
         kotlinVersion: String,
         cdkVersion: Version,
         projectVersion: String,
@@ -155,10 +155,10 @@ object BuildFileGenerator {
         }
     }
 
-    private fun runGeneratorsForUnhandledCdkVersions(
+    private suspend fun runGeneratorsForUnhandledCdkVersions(
         targetDir: File
     ) {
-        PackageManager.unhandledCdkModulesForVersions.keys.forEach {
+        PackageManager.unhandledCdkModulesForVersions().keys.forEach {
             runGeneratorForVersion(
                 cdkVersion = it,
                 targetDir = targetDir
@@ -183,18 +183,18 @@ object BuildFileGenerator {
         println("Completed generation and build for cdk version $cdkVersion")
     }
 
-    fun publishForUnhandledCdkVersions(
+    suspend fun publishForUnhandledCdkVersions(
         targetDir: File
     ) {
-        PackageManager.unhandledCdkModulesForVersions.keys.forEach { version ->
+        PackageManager.unhandledCdkModulesForVersions().keys.forEach { version ->
             publishForVersion(version, targetDir)
         }
     }
 
-    fun publishForLatestVersion(
+    suspend fun publishForLatestVersion(
         targetDir: File
     ) {
-        PackageManager.modulesForLatestCdkVersions.first.let { version: Version ->
+        PackageManager.modulesForLatestCdkVersions().first.let { version: Version ->
             publishForVersion(version, targetDir)
         }
     }
@@ -296,7 +296,7 @@ object BuildFileGenerator {
         }
     """.trimIndent()
 
-    private fun `get generated build-gradle-kts file as text`(
+    private suspend fun `get generated build-gradle-kts file as text`(
         cdkModule: String,
         cdkVersion: Version,
         bintrayUser: String,
@@ -324,7 +324,7 @@ object BuildFileGenerator {
             implementation("jp.justincase.aws-cdk-kotlin-dsl:dsl-common:$projectVersion")
             api("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
             implementation("software.amazon.awscdk", "core", "$cdkVersion")
-            ${PackageManager.moduleDependencyMap.getValue(cdkVersion).getValue(cdkModule)
+            ${PackageManager.moduleDependencyMap().getValue(cdkVersion).getValue(cdkModule)
         .joinToString("\n\t") { "api(project(\":$it\"))" }}
         }
         

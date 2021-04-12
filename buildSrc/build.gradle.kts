@@ -27,6 +27,6 @@ tasks.withType<KotlinCompile> {
 
         apiVersion = ApiVersion.KOTLIN_1_3.versionString
         languageVersion = LanguageVersion.KOTLIN_1_3.versionString
-        freeCompilerArgs = listOf("-XXLanguage:+InlineClasses", "-Xuse-experimental=kotlin.Experimental")
+        freeCompilerArgs = listOf("-Xuse-experimental=kotlin.Experimental")
     }
 }

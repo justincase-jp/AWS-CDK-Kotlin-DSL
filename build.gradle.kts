@@ -39,7 +39,7 @@ tasks {
             group = "cdk-dsl"
             dependsOn(getByPath(":dsl-generator:publishToMavenLocal"))
             dependsOn(getByPath(":dsl-common:publishToMavenLocal"))
-            doLast {
+            doLastBlocking {
                 BuildFileGenerator.generateAndBuildForLatestVersion(
                     kotlinVersion,
                     dslVersion,
@@ -54,7 +54,7 @@ tasks {
             group = "cdk-dsl"
             dependsOn(getByPath(":dsl-generator:publishToMavenLocal"))
             dependsOn(getByPath(":dsl-common:publishToMavenLocal"))
-            doLast {
+            doLastBlocking {
                 BuildFileGenerator.generateAndBuildForUnhandledCdkVersions(
                     kotlinVersion,
                     dslVersion,
@@ -67,7 +67,7 @@ tasks {
 
         val createPackages = register("createBintrayPackages") {
             group = "cdk-dsl"
-            doLast {
+            doLastBlocking {
                 PackageManager.createBintrayPackages(bintrayUser, bintrayKey)
             }
         }
@@ -76,7 +76,7 @@ tasks {
             group = "cdk-dsl"
             dependsOn(genLatest)
             dependsOn(createPackages)
-            doLast {
+            doLastBlocking {
                 BuildFileGenerator.publishForLatestVersion(File(buildDir, "cdkdsl"))
             }
         }
@@ -85,7 +85,7 @@ tasks {
             group = "cdk-dsl"
             dependsOn(genUnhandled)
             dependsOn(createPackages)
-            doLast {
+            doLastBlocking {
                 BuildFileGenerator.publishForUnhandledCdkVersions(File(buildDir, "cdkdsl"))
             }
         }

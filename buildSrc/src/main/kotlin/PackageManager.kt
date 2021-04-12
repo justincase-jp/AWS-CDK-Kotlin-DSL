@@ -14,13 +14,16 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.*
 import io.ktor.util.*
 import io.ktor.utils.io.jvm.javaio.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.withContext
 import org.w3c.dom.Node
 import org.w3c.dom.NodeList
+import utility.SuspendedLazy
 import javax.xml.parsers.DocumentBuilderFactory
 
 object PackageManager {
@@ -37,10 +40,10 @@ object PackageManager {
 
     private val leastVersion = Version("1.20.0")
 
-    val cdkModules: Set<String> by lazy {
+    val cdkModules = SuspendedLazy {
         println("Start to get list of CDK modules")
         println(requestUrl)
-        val response = runBlocking {
+        val response = kotlin.run {
             val result = kotlin.runCatching {
                 client.get<String>(requestUrl)
             }
@@ -63,10 +66,10 @@ object PackageManager {
         }.map { it.a }.filter { "monocdk" !in it }.toSet()
     }
 
-    val bintrayPackageLatestVersion: Map<String, Version> by lazy {
-        val job = GlobalScope.async {
+    val bintrayPackageLatestVersion = SuspendedLazy {
+        val result = kotlin.run {
             println("Start to get latest package version from bintray")
-            cdkModules.asFlow().map { module ->
+            cdkModules().asFlow().map { module ->
                 val bintrayVersionApiUrl = "$bintrayApiBaseUrl/$module/versions/_latest"
                 println(bintrayVersionApiUrl)
                 val response = withContext(Dispatchers.IO) {
@@ -81,15 +84,13 @@ object PackageManager {
             }.toList().toMap()
         }
         println("Completed getting latest package version from bintray")
-        runBlocking {
-            job.await()
-        }
+        result
     }
 
-    val cdkVersions: Map<String, List<Version>> by lazy {
-        runSuspend {
+    val cdkVersions = SuspendedLazy {
+        kotlin.run {
             println("Start to get version list of CDK modules")
-            cdkModules.asFlow()
+            cdkModules().asFlow()
                 .map { module ->
                     val cdkMavenMetadataUrl =
                         "https://repo1.maven.org/maven2/software/amazon/awscdk/$module/maven-metadata.xml"
@@ -115,9 +116,9 @@ object PackageManager {
         }
     }
 
-    val cdkModulesForVersion: Map<Version, Set<String>> by lazy {
+    val cdkModulesForVersion = SuspendedLazy<Map<Version, Set<String>>> {
         val map = mutableMapOf<Version, MutableSet<String>>()
-        cdkVersions.forEach { (module, versions) ->
+        cdkVersions().forEach { (module, versions) ->
             versions.forEach {
                 if (map.containsKey(it)) {
                     map.getValue(it) += module
@@ -129,13 +130,13 @@ object PackageManager {
         map
     }
 
-    val latestCdkVersions: Map<String, Version> by lazy {
-        cdkVersions.mapValues { pair -> pair.value.last() }
+    val latestCdkVersions = SuspendedLazy {
+        cdkVersions().mapValues { pair -> pair.value.last() }
     }
 
-    val modulesForLatestCdkVersions: Pair<Version, Set<String>> by lazy {
+    val modulesForLatestCdkVersions = SuspendedLazy<Pair<Version, Set<String>>> {
         val map = mutableMapOf<Version, MutableSet<String>>()
-        latestCdkVersions.forEach { (module, version) ->
+        latestCdkVersions().forEach { (module, version) ->
             if (map.containsKey(version)) {
                 map[version]!! += module
             } else {
@@ -145,15 +146,15 @@ object PackageManager {
         map.toSortedMap().run { lastKey() to getValue(lastKey()) }
     }
 
-    val unhandledCdkVersions: Map<String, List<Version>> by lazy {
-        cdkVersions.mapValues { pair ->
-            pair.value.filter { it > bintrayPackageLatestVersion.getValue(pair.key) }
+    val unhandledCdkVersions = SuspendedLazy {
+        cdkVersions().mapValues { pair ->
+            pair.value.filter { it > bintrayPackageLatestVersion().getValue(pair.key) }
         }
     }
 
-    val unhandledCdkModulesForVersions: Map<Version, Set<String>> by lazy {
+    val unhandledCdkModulesForVersions = SuspendedLazy<Map<Version, Set<String>>> {
         val map = mutableMapOf<Version, MutableSet<String>>()
-        unhandledCdkVersions.forEach { (module, versions) ->
+        unhandledCdkVersions().forEach { (module, versions) ->
             versions.forEach {
                 if (map.containsKey(it)) {
                     map[it]!! += module
@@ -165,10 +166,10 @@ object PackageManager {
         map
     }
 
-    val moduleDependencyMap: Map<Version, Map<String, List<String>>> by lazy {
-        runSuspend {
+    val moduleDependencyMap =
+        SuspendedLazy {
             println("Start to get dependencies of CDK modules")
-            (unhandledCdkModulesForVersions + modulesForLatestCdkVersions).toList().asFlow().map { (version, modules) ->
+            (unhandledCdkModulesForVersions() + modulesForLatestCdkVersions()).toList().asFlow().map { (version, modules) ->
                 println("version: $version, module count: ${modules.size}.")
                 version to modules.map { module ->
                     val targetUrl =
@@ -194,10 +195,9 @@ object PackageManager {
                 println("Completed getting dependencies of CDK modules")
             }
         }
-    }
 
     @UseExperimental(KtorExperimentalAPI::class)
-    fun createBintrayPackages(
+    suspend fun createBintrayPackages(
         bintrayUser: String,
         bintrayApiKey: String
     ) {
@@ -210,8 +210,8 @@ object PackageManager {
             }
             expectSuccess = false
         }
-        runSuspend {
-            cdkModules.map {
+        withContext(Dispatchers.IO) {
+            cdkModules().map {
                 async {
                     if (client.get<HttpStatusCode>("$bintrayApiBaseUrl/$it") != HttpStatusCode.OK) {
                         client.post<String>(bintrayApiBaseUrl) {
@@ -231,10 +231,6 @@ object PackageManager {
                 }
             }.forEach { it.await() }
         }
-    }
-
-    private fun <T> runSuspend(block: suspend CoroutineScope.() -> T): T {
-        return GlobalScope.async(block = block).let { async -> runBlocking { async.await() } }
     }
 
     private fun NodeList.asList(): List<Node> {
