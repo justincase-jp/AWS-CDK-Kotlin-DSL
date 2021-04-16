@@ -1,23 +1,28 @@
 version: 2.1
 
 jobs:
-  build:
+  buildLatest:
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
       - checkout
-      - run: gradle -S generateAndBuildForLatestVersion
-      - run: "gradle -S :dsl-common:build"
+      - run: gradle -S buildLatest
 
-  test:
+  buildUnhandled:
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
       - checkout
-      - run: gradle -S test
-      - run: "gradle -S :dsl-common:test"
+      - run: gradle -S buildUnhandled
 
-  deployForCdk:
+  buildSpecified:
+    docker:
+      - image: gradle:6.0.1-jdk8
+    steps:
+      - checkout
+      - run: gradle -S buildSpecified
+
+  publishUnhandled:
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
@@ -26,14 +31,13 @@ jobs:
           if [ -z ${CIRCLE_TAG+x} ]; then
             git ls-remote --exit-code origin refs/tags/v"${CIRCLE_BRANCH#release/}"
           fi
-          gradle -S publishForUnhandledCdkVersions
+          gradle -S publishUnhandled
 
-  deployForUpdate:
+  publishDslCommon:
     docker:
-      - image: gradle:5.6.0-jdk8
+      - image: gradle:6.0.1-jdk8
     steps:
       - checkout
-      - run: gradle -S publishForLatestVersion
       - run: "gradle -S :dsl-common:bintrayUpload"
 
 workflows:
@@ -41,18 +45,22 @@ workflows:
 
   untagged:
     jobs:
-      - build
-      - test
+      - buildUnhandled
+      - buildSpecified
   current:
     jobs:
-      - deployForCdk
+      - publishUnhandled
     triggers:
       - schedule:
-          cron: '0 5 * * *'
-          filters: { branches: { only: '/^release\/.*/' } }
+          cron: 0 5 * * *
+          filters: { branches: { only: /^release\/.*/ } }
   all:
     jobs:
-      - deployForUpdate:
+      - publishUnhandled:
           filters:
-            tags: { only: '/^v.*/' }
-            branches: { ignore: '/^.*/' }
+            tags: { only: /^v.*/ }
+            branches: { only: /x^/ }
+      - publishDslCommon:
+          filters:
+            tags: { only: /^v.*/ }
+            branches: { only: /x^/ }

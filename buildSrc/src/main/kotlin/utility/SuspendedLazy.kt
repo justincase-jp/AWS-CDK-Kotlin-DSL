@@ -1,8 +1,12 @@
 package utility
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart.LAZY
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers.Unconfined
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 
 class SuspendedLazy<T> private constructor(
@@ -26,3 +30,9 @@ class SuspendedLazy<T> private constructor(
     suspend operator fun invoke() =
         value.get().await()
 }
+
+
+fun <K, V> cache(valueFunction: suspend CoroutineScope.(K) -> V): suspend (K) -> V =
+    ConcurrentHashMap<K, SuspendedLazy<V>>().let { map ->
+        { k -> map.computeIfAbsent(k) { SuspendedLazy { valueFunction(it) } }() }
+    }

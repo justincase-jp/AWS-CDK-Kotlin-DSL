@@ -1,3 +1,4 @@
+
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import data.*
@@ -14,22 +15,24 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.*
 import io.ktor.util.*
 import io.ktor.utils.io.jvm.javaio.*
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.retry
 import kotlinx.coroutines.withContext
-import org.w3c.dom.Node
 import org.w3c.dom.NodeList
 import utility.SuspendedLazy
+import utility.cache
+import java.util.*
 import javax.xml.parsers.DocumentBuilderFactory
 
 object PackageManager {
 
     private const val requestUrl =
-        "https://search.maven.org/solrsearch/select?q=g:software.amazon.awscdk&rows=200&wt=json&start=0"
+        "https://search.maven.org/solrsearch/select?q=g:software.amazon.awscdk&rows=400&wt=json&start=0"
 
     private const val bintrayApiBaseUrl = "https://api.bintray.com/packages/justincase/aws-cdk-kotlin-dsl"
 
@@ -38,22 +41,16 @@ object PackageManager {
         install(HttpTimeout)
     }
 
-    private val leastVersion = Version("1.20.0")
+    private val lowerBound = Version("1.20.0")
+    private val upperBound = Version("2.0.0")
 
-    val cdkModules = SuspendedLazy {
+    val allCdkModules = SuspendedLazy {
         println("Start to get list of CDK modules")
         println(requestUrl)
-        val response = kotlin.run {
-            val result = kotlin.runCatching {
+        val response =
+            kotlin.run {
                 client.get<String>(requestUrl)
             }
-            while (result.isFailure) {
-                result.recover {
-                    client.get(requestUrl)
-                }
-            }
-            result.getOrThrow()
-        }
         println("Completed getting list of CDK modules")
         val obj = jacksonObjectMapper().readValue<ResponseJson>(response)
         obj.response.docs.filter {
@@ -62,126 +59,119 @@ object PackageManager {
                     ".jar",
                     ".pom"
                 )
-            ) && Version(it.latestVersion) >= leastVersion
+            ) && Version(it.latestVersion) >= lowerBound
         }.map { it.a }.filter { "monocdk" !in it }.toSet()
     }
 
-    val bintrayPackageLatestVersion = SuspendedLazy {
-        val result = kotlin.run {
+    val latestCdkDslVersions = SuspendedLazy {
+        val results = withContext(IO) {
             println("Start to get latest package version from bintray")
-            cdkModules().asFlow().map { module ->
+            allCdkModules().map { module -> async {
                 val bintrayVersionApiUrl = "$bintrayApiBaseUrl/$module/versions/_latest"
                 println(bintrayVersionApiUrl)
-                val response = withContext(Dispatchers.IO) {
+                val response =
                     client.get<HttpResponse>(bintrayVersionApiUrl)
-                }
+
                 if (response.status != HttpStatusCode.OK) {
-                    return@map module to leastVersion
+                    println("$module may not have published CDK DSL versions yet")
+                    return@async module to null
                 }
                 val versionJson = jacksonObjectMapper().readValue<BintrayVersionJson>(response.readText())
-                val cdkVersionString = versionJson.name.split('-')[0]
-                module to Version(cdkVersionString)
-            }.toList().toMap()
+                val (cdkVersionString, dslVersionString) = versionJson.name.split('-')
+                module to (Version(cdkVersionString) to Version(dslVersionString))
+            } }
         }
+        val versions = results.associate { it.await() }
         println("Completed getting latest package version from bintray")
-        result
+        versions
     }
 
-    val cdkVersions = SuspendedLazy {
-        kotlin.run {
+    val cdkVersions =
+        SuspendedLazy {
             println("Start to get version list of CDK modules")
-            cdkModules().asFlow()
-                .map { module ->
+            val versions = allCdkModules()
+                .map { module -> async(IO) {
                     val cdkMavenMetadataUrl =
                         "https://repo1.maven.org/maven2/software/amazon/awscdk/$module/maven-metadata.xml"
                     println(cdkMavenMetadataUrl)
-                    val response = withContext(Dispatchers.IO) {
+
+                    val response =
                         client.get<HttpResponse>(cdkMavenMetadataUrl)
-                    }
-                    val doc = withContext(Dispatchers.IO) {
+                    val doc =
                         DocumentBuilderFactory.newInstance().newDocumentBuilder()
                             .parse(response.content.toInputStream())
-                    }
+
                     module to doc.getElementsByTagName("versions").item(0).childNodes.asList()
+                        .asSequence()
                         .filter { it.nodeName == "version" }
                         .map { Version(it.textContent) }
-                        .filter { it > leastVersion }
-                }.filter {
-                    it.second.isNotEmpty()
-                }.toList().toMap()
-        }.let { map ->
+                        .filter { it >= lowerBound && it < upperBound }
+                        .toSet()
+                } }
+                .associate { it.await() }
             println("Completed getting version list of CDK modules")
-            val min = map.minBy { it.value.min()!! }!!.value.min()!!
-            map.filter { it.value.min()!! >= min }
+            versions
         }
-    }
 
-    val cdkModulesForVersion = SuspendedLazy<Map<Version, Set<String>>> {
-        val map = mutableMapOf<Version, MutableSet<String>>()
-        cdkVersions().forEach { (module, versions) ->
-            versions.forEach {
-                if (map.containsKey(it)) {
-                    map.getValue(it) += module
-                } else {
-                    map[it] = mutableSetOf(module)
-                }
+    val cdkModules = SuspendedLazy<Map<Version, List<String>>> {
+        cdkVersions()
+            .asSequence()
+            .flatMap { (module, versions) ->
+                versions.asSequence().map { it to module }
             }
-        }
-        map
+            .groupByTo(TreeMap(), { it.first }) { it.second }
     }
 
-    val latestCdkVersions = SuspendedLazy {
-        cdkVersions().mapValues { pair -> pair.value.last() }
-    }
+    val unhandledCdkModules = SuspendedLazy<Map<Version, List<String>>> {
+        val latestCdkDslVersions = latestCdkDslVersions()
 
-    val modulesForLatestCdkVersions = SuspendedLazy<Pair<Version, Set<String>>> {
-        val map = mutableMapOf<Version, MutableSet<String>>()
-        latestCdkVersions().forEach { (module, version) ->
-            if (map.containsKey(version)) {
-                map[version]!! += module
-            } else {
-                map[version] = mutableSetOf(module)
+        cdkVersions()
+            .asSequence()
+            .flatMap { (module, versions) ->
+                versions
+                    .asSequence()
+                    .let { sequence ->
+                        latestCdkDslVersions[module]
+                            ?.let { (handledCdkVersion) -> sequence.filter { it > handledCdkVersion } }
+                            ?: sequence
+                    }
+                    .map { it to module }
             }
-        }
-        map.toSortedMap().run { lastKey() to getValue(lastKey()) }
+            .groupByTo(TreeMap(), { it.first }) { it.second }
     }
 
-    val unhandledCdkVersions = SuspendedLazy {
-        cdkVersions().mapValues { pair ->
-            pair.value.filter { it > bintrayPackageLatestVersion().getValue(pair.key) }
-        }
-    }
-
-    val unhandledCdkModulesForVersions = SuspendedLazy<Map<Version, Set<String>>> {
-        val map = mutableMapOf<Version, MutableSet<String>>()
-        unhandledCdkVersions().forEach { (module, versions) ->
-            versions.forEach {
-                if (map.containsKey(it)) {
-                    map[it]!! += module
-                } else {
-                    map[it] = mutableSetOf(module)
-                }
-            }
-        }
-        map
-    }
-
-    val moduleDependencyMap =
-        SuspendedLazy {
+    val moduleDependency =
+        cache { version: Version ->
             println("Start to get dependencies of CDK modules")
-            (unhandledCdkModulesForVersions() + modulesForLatestCdkVersions()).toList().asFlow().map { (version, modules) ->
+
+            val modules = cdkModules().getOrDefault(version, listOf()).also { modules ->
                 println("version: $version, module count: ${modules.size}.")
-                version to modules.map { module ->
+            }
+            val dependencies = modules.map { module ->
+                async(IO) {
                     val targetUrl =
                         "https://repo1.maven.org/maven2/software/amazon/awscdk/$module/$version/$module-${version}.pom"
                     println(targetUrl)
-                    val doc = withContext(Dispatchers.IO) {
-                        val response = client.get<HttpResponse>(targetUrl)
 
+                    val access = flow {
+                        val response = client.get<HttpResponse>(targetUrl)
                         check(response.status == HttpStatusCode.OK) { "${response.status} on accessing $targetUrl" }
-                        DocumentBuilderFactory.newInstance().newDocumentBuilder()
+
+                        @Suppress("BlockingMethodInNonBlockingContext")
+                        val document = DocumentBuilderFactory.newInstance().newDocumentBuilder()
                             .parse(response.content.toInputStream())
+                        emit(document)
                     }
+                    @UseExperimental(ExperimentalCoroutinesApi::class)
+                    val doc = access
+                        .retry(30) {
+                            it.printStackTrace()
+                            delay(3000)
+                            println("Retrying...")
+                            true
+                        }
+                        .first()
+
                     val list = doc.getElementsByTagName("dependency").asList().map { node ->
                         PomArtifact(
                             node.childNodes.asList().single { it.nodeName == "groupId" }.textContent,
@@ -190,11 +180,23 @@ object PackageManager {
                         )
                     }.filter { it.groupId == "software.amazon.awscdk" }.map { it.artifactId }
                     module to list
-                }.toMap()
-            }.toList().toMap().apply {
+                }
+            }
+            dependencies.associate { it.await() }.also {
                 println("Completed getting dependencies of CDK modules")
             }
         }
+
+    suspend fun getUnpublishedModules(cdkVersion: Version, cdkDslVersion: Version) =
+        cdkModules()
+            .getOrDefault(cdkVersion, listOf())
+            .filter { module ->
+                latestCdkDslVersions()[module]
+                    ?.let { (handledCdkVersion, handledCdkDslVersion) ->
+                        cdkVersion > handledCdkVersion || cdkDslVersion > handledCdkDslVersion
+                    }
+                    ?: true
+            }
 
     @UseExperimental(KtorExperimentalAPI::class)
     suspend fun createBintrayPackages(
@@ -210,8 +212,8 @@ object PackageManager {
             }
             expectSuccess = false
         }
-        withContext(Dispatchers.IO) {
-            cdkModules().map {
+        withContext(IO) {
+            allCdkModules().map {
                 async {
                     if (client.get<HttpStatusCode>("$bintrayApiBaseUrl/$it") != HttpStatusCode.OK) {
                         client.post<String>(bintrayApiBaseUrl) {
@@ -233,11 +235,6 @@ object PackageManager {
         }
     }
 
-    private fun NodeList.asList(): List<Node> {
-        val list = mutableListOf<Node>()
-        for (i in 1..this.length) {
-            list.add(item(i - 1))
-        }
-        return list
-    }
+    private fun NodeList.asList() =
+        List(length, ::item)
 }

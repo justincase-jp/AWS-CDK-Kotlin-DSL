@@ -1,3 +1,5 @@
+import data.Version
+
 plugins {
     kotlin("jvm") version "1.4.10"
     id("maven-publish")
@@ -16,18 +18,16 @@ val awsCdkVersion: String by project
 val dslVersion =
     System.getenv("CIRCLE_TAG")?.removePrefixOrNull("v")
         ?: System.getenv("CIRCLE_BRANCH")?.removePrefixOrNull("release/")
-        ?: "unspecified"
 
 allprojects {
     group = "jp.justincase"
-    version = "$awsCdkVersion-$dslVersion"
+    version = "$awsCdkVersion-${dslVersion ?: "unspecified"}"
 
     repositories {
         mavenCentral()
     }
 }
 
-// todo create bintray package task
 tasks {
     if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] != null || project.hasProperty("bintrayApiKey")) {
         val bintrayUser = System.getenv("bintrayUser") ?: System.getenv()["bintrayUser"]
@@ -35,59 +35,57 @@ tasks {
         val bintrayKey = System.getenv("bintrayApiKey") ?: System.getenv()["bintrayApiKey"]
         ?: project.findProperty("bintrayApiKey") as String
 
-        val genLatest = register("generateAndBuildForLatestVersion") {
+        val bintrayCredential = bintrayUser to bintrayKey
+
+        create("buildUnhandled") {
             group = "cdk-dsl"
             dependsOn(getByPath(":dsl-generator:publishToMavenLocal"))
             dependsOn(getByPath(":dsl-common:publishToMavenLocal"))
             doLastBlocking {
-                BuildFileGenerator.generateAndBuildForLatestVersion(
+                BuildFileGenerator.buildUnhandled(
                     kotlinVersion,
                     dslVersion,
                     File(buildDir, "cdkdsl"),
-                    bintrayUser,
-                    bintrayKey
+                    bintrayCredential
                 )
             }
         }
 
-        val genUnhandled = register("generateAndBuildForUnhandledCdkVersions") {
-            group = "cdk-dsl"
-            dependsOn(getByPath(":dsl-generator:publishToMavenLocal"))
-            dependsOn(getByPath(":dsl-common:publishToMavenLocal"))
-            doLastBlocking {
-                BuildFileGenerator.generateAndBuildForUnhandledCdkVersions(
-                    kotlinVersion,
-                    dslVersion,
-                    File(buildDir, "cdkdsl"),
-                    bintrayUser,
-                    bintrayKey
-                )
-            }
-        }
-
-        val createPackages = register("createBintrayPackages") {
+        val createBintrayPackages by creating {
             group = "cdk-dsl"
             doLastBlocking {
                 PackageManager.createBintrayPackages(bintrayUser, bintrayKey)
             }
         }
 
-        register("publishForLatestVersion") {
+        if (dslVersion != null) create("publishUnhandled") {
             group = "cdk-dsl"
-            dependsOn(genLatest)
-            dependsOn(createPackages)
+            dependsOn(createBintrayPackages)
+            dependsOn(getByPath(":dsl-generator:publishToMavenLocal"))
+            dependsOn(getByPath(":dsl-common:publishToMavenLocal"))
             doLastBlocking {
-                BuildFileGenerator.publishForLatestVersion(File(buildDir, "cdkdsl"))
+                BuildFileGenerator.publishUnhandled(
+                    kotlinVersion,
+                    dslVersion,
+                    File(buildDir, "cdkdsl"),
+                    bintrayCredential
+                )
             }
         }
+    }
 
-        register("publishForUnhandledCdkVersions") {
-            group = "cdk-dsl"
-            dependsOn(genUnhandled)
-            dependsOn(createPackages)
-            doLastBlocking {
-                BuildFileGenerator.publishForUnhandledCdkVersions(File(buildDir, "cdkdsl"))
-            }
+    create("buildSpecified") {
+        group = "cdk-dsl"
+        dependsOn(getByPath(":dsl-generator:publishToMavenLocal"))
+        dependsOn(getByPath(":dsl-common:publishToMavenLocal"))
+        doLastBlocking {
+            BuildFileGenerator.buildSpecified(
+                kotlinVersion,
+                dslVersion,
+                File(buildDir, "cdkdsl"),
+                null,
+                Version(awsCdkVersion)
+            )
         }
     }
 }

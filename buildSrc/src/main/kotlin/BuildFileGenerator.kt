@@ -1,91 +1,64 @@
+
 import data.Version
 import org.apache.commons.exec.CommandLine
 import org.apache.commons.exec.DefaultExecutor
 import java.io.File
 
 object BuildFileGenerator {
-
+    private const val t = "    "
     private val ci = System.getenv("CI")?.toBoolean() == true
 
-    suspend fun generateAndBuildForUnhandledCdkVersions(
+    suspend fun buildUnhandled(
         kotlinVersion: String,
-        projectVersion: String,
+        projectVersion: String?,
         targetDir: File,
-        bintrayUser: String,
-        bintrayApiKey: String
-    ) {
-        generateBuildFilesForUnhandledCdkVersions(
-            kotlinVersion = kotlinVersion,
-            projectVersion = projectVersion,
-            targetDir = targetDir,
-            bintrayUser = bintrayUser,
-            bintrayApiKey = bintrayApiKey
-        )
-        runGeneratorsForUnhandledCdkVersions(targetDir = targetDir)
-    }
+        bintrayCredential: Pair<String, String>?
+    ) =
+        PackageManager.unhandledCdkModules().keys.forEach { version ->
+            buildSpecified(kotlinVersion, projectVersion, targetDir, bintrayCredential, version)
+        }
 
-    suspend fun generateAndBuildForLatestVersion(
+    suspend fun buildSpecified(
         kotlinVersion: String,
-        projectVersion: String,
+        projectVersion: String?,
         targetDir: File,
-        bintrayUser: String,
-        bintrayApiKey: String
-    ) {
-        PackageManager.modulesForLatestCdkVersions().let { (version, _) ->
-            generateBuildFilesForVersion(
+        bintrayCredential: Pair<String, String>?,
+        version: Version
+    ) =
+        kotlin.run {
+            prepareBuild(
                 kotlinVersion = kotlinVersion,
                 cdkVersion = version,
-                projectVersion = projectVersion,
+                projectVersion = projectVersion ?: "unspecified",
                 targetDir = targetDir,
-                bintrayUser = bintrayUser,
-                bintrayApiKey = bintrayApiKey,
-                generateModules = PackageManager.cdkModulesForVersion().getValue(version).toList(),
-                publishModules = PackageManager.unhandledCdkModulesForVersions().getValue(version).toList()
+                bintrayCredential = bintrayCredential,
+                generateModules = PackageManager.cdkModules().getOrDefault(version, listOf()),
+                publishModules = bintrayCredential?.let {
+                    projectVersion?.let {
+                        PackageManager.getUnpublishedModules(version, Version(it))
+                    }
+                }
             )
-            runGeneratorForVersion(
+            runBuild(
                 version,
                 targetDir
             )
         }
-    }
 
-    private suspend fun generateBuildFilesForUnhandledCdkVersions(
-        kotlinVersion: String,
-        projectVersion: String,
-        targetDir: File,
-        bintrayUser: String,
-        bintrayApiKey: String
-    ) {
-        PackageManager.unhandledCdkModulesForVersions().forEach { (version, _) ->
-            generateBuildFilesForVersion(
-                kotlinVersion = kotlinVersion,
-                cdkVersion = version,
-                projectVersion = projectVersion,
-                targetDir = targetDir,
-                bintrayUser = bintrayUser,
-                bintrayApiKey = bintrayApiKey,
-                generateModules = PackageManager.cdkModulesForVersion().getValue(version).toList(),
-                publishModules = PackageManager.unhandledCdkModulesForVersions().getValue(version).toList()
-            )
-        }
-    }
-
-    private suspend fun generateBuildFilesForVersion(
+    private suspend fun prepareBuild(
         kotlinVersion: String,
         cdkVersion: Version,
         projectVersion: String,
         targetDir: File,
-        bintrayUser: String,
-        bintrayApiKey: String,
+        bintrayCredential: Pair<String, String>?,
         generateModules: List<String>,
-        publishModules: List<String>
+        publishModules: List<String>?
     ) {
         val generateDir = File(targetDir, cdkVersion.toString())
         generateDir.mkdirs()
 
         // root build.gradle.kts
         File(generateDir, "build.gradle.kts").apply {
-            createNewFile()
             writeText(
                 `get root build-gradle-kts file as text`(
                     kotlinVersion = kotlinVersion,
@@ -98,7 +71,6 @@ object BuildFileGenerator {
         }
         // root settings.gradle.kts
         File(generateDir, "settings.gradle.kts").apply {
-            createNewFile()
             writeText(
                 `get root settings-gradle-kts file as text`(
                     modules = generateModules
@@ -112,13 +84,11 @@ object BuildFileGenerator {
             moduleDir.mkdirs()
             // generated build.gradle.kts
             File(moduleDir, "build.gradle.kts").apply {
-                createNewFile()
                 writeText(
                     `get generated build-gradle-kts file as text`(
                         cdkModule = module,
                         cdkVersion = cdkVersion,
-                        bintrayUser = bintrayUser,
-                        bintrayApiKey = bintrayApiKey,
+                        bintrayCredential = bintrayCredential,
                         projectVersion = projectVersion
                     )
                 )
@@ -127,7 +97,6 @@ object BuildFileGenerator {
             generatorDir.mkdirs()
             // generator build.gradle.kts
             File(generatorDir, "build.gradle.kts").apply {
-                createNewFile()
                 writeText(
                     `get generator build-gradle-kts file as text`(
                         cdkModule = module,
@@ -143,11 +112,9 @@ object BuildFileGenerator {
         File(generateDir, "platform").let { platformDir ->
             platformDir.mkdirs()
             File(platformDir, "build.gradle.kts").apply {
-                createNewFile()
                 writeText(
                     `get platform build-gradle-kts file as text`(
-                        bintrayUser = bintrayUser,
-                        bintrayApiKey = bintrayApiKey,
+                        bintrayCredential = bintrayCredential,
                         modules = generateModules
                     )
                 )
@@ -155,18 +122,7 @@ object BuildFileGenerator {
         }
     }
 
-    private suspend fun runGeneratorsForUnhandledCdkVersions(
-        targetDir: File
-    ) {
-        PackageManager.unhandledCdkModulesForVersions().keys.forEach {
-            runGeneratorForVersion(
-                cdkVersion = it,
-                targetDir = targetDir
-            )
-        }
-    }
-
-    private fun runGeneratorForVersion(
+    private fun runBuild(
         cdkVersion: Version,
         targetDir: File
     ) {
@@ -183,23 +139,19 @@ object BuildFileGenerator {
         println("Completed generation and build for cdk version $cdkVersion")
     }
 
-    suspend fun publishForUnhandledCdkVersions(
-        targetDir: File
+    suspend fun publishUnhandled(
+        kotlinVersion: String,
+        projectVersion: String,
+        targetDir: File,
+        bintrayCredential: Pair<String, String>
     ) {
-        PackageManager.unhandledCdkModulesForVersions().keys.forEach { version ->
-            publishForVersion(version, targetDir)
+        PackageManager.unhandledCdkModules().keys.forEach { version ->
+            buildSpecified(kotlinVersion, projectVersion, targetDir, bintrayCredential, version)
+            publish(version, targetDir)
         }
     }
 
-    suspend fun publishForLatestVersion(
-        targetDir: File
-    ) {
-        PackageManager.modulesForLatestCdkVersions().first.let { version: Version ->
-            publishForVersion(version, targetDir)
-        }
-    }
-
-    private fun publishForVersion(
+    private fun publish(
         cdkVersion: Version,
         targetDir: File
     ) {
@@ -224,7 +176,7 @@ object BuildFileGenerator {
         cdkVersion: String,
         projectVersion: String,
         generateModules: List<String>,
-        publishModules: List<String>
+        publishModules: List<String>?
     ) = """
         import org.w3c.dom.Node
         import com.jfrog.bintray.gradle.BintrayExtension
@@ -250,13 +202,13 @@ object BuildFileGenerator {
                 kotlinOptions.jvmTarget = "1.8"
         }
 
-        tasks.register("publishAll") {
-            ${publishModules.joinToString(separator = "\n\t") { "dependsOn(\"$it:bintrayUpload\")" }}
+        ${publishModules?.let { """tasks.register("publishAll") {
+            ${publishModules.joinToString(separator = "\n$t$t$t") { """dependsOn("$it:bintrayUpload")""" }}
             dependsOn(":platform:bintrayUpload")
-        }
+        }""" } ?: "" }
         
         tasks.register("generateAll") {
-            ${generateModules.joinToString(separator = "\n\t") { "dependsOn(\"$it-gen:run\")" }}
+            ${generateModules.joinToString(separator = "\n$t$t$t") { """dependsOn("$it-gen:run")""" }}
         }
     """.trimIndent()
 
@@ -264,7 +216,7 @@ object BuildFileGenerator {
         modules: List<String>
     ) = """
         rootProject.name = "aws-cdk-kotlin-dsl"
-        ${modules.joinToString(separator = "\n") { "include(\"$it-gen\", \"$it\")" }}
+        ${modules.joinToString(separator = "\n$t$t") { """include("$it-gen", "$it")""" }}
         include("platform")
     """.trimIndent()
 
@@ -299,8 +251,7 @@ object BuildFileGenerator {
     private suspend fun `get generated build-gradle-kts file as text`(
         cdkModule: String,
         cdkVersion: Version,
-        bintrayUser: String,
-        bintrayApiKey: String,
+        bintrayCredential: Pair<String, String>?,
         projectVersion: String
     ) = """
         plugins {
@@ -324,8 +275,12 @@ object BuildFileGenerator {
             implementation("jp.justincase.aws-cdk-kotlin-dsl:dsl-common:$projectVersion")
             api("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
             implementation("software.amazon.awscdk", "core", "$cdkVersion")
-            ${PackageManager.moduleDependencyMap().getValue(cdkVersion).getValue(cdkModule)
-        .joinToString("\n\t") { "api(project(\":$it\"))" }}
+            ${
+                PackageManager
+                    .moduleDependency(cdkVersion)
+                    .getOrDefault(cdkModule, listOf())
+                    .joinToString("\n$t$t$t") { """api(project(":$it"))""" }
+            }
         }
         
         publishing {
@@ -341,7 +296,7 @@ object BuildFileGenerator {
             }
         }
         
-        bintray {
+        ${bintrayCredential?.let { (bintrayUser, bintrayApiKey) -> """bintray {
             user = "$bintrayUser"
             key = "$bintrayApiKey"
             setPublications("maven")
@@ -354,12 +309,11 @@ object BuildFileGenerator {
                     name = project.version.toString()
                 })
             })
-        }
+        }""" } ?: ""}
     """.trimIndent()
 
     private fun `get platform build-gradle-kts file as text`(
-        bintrayUser: String,
-        bintrayApiKey: String,
+        bintrayCredential: Pair<String, String>?,
         modules: List<String>
     ) = """
         plugins {
@@ -370,7 +324,9 @@ object BuildFileGenerator {
         
         dependencies {
             constraints {
-                ${modules.joinToString(separator = "\n") { "api(\"jp.justincase.aws-cdk-kotlin-dsl:$it:\${project.version}\")" }}
+                ${modules.joinToString(separator = "\n$t$t$t$t") {
+                    """api("jp.justincase.aws-cdk-kotlin-dsl:$it:${'$'}{project.version}")"""
+                }}
             }
         }
         
@@ -382,7 +338,7 @@ object BuildFileGenerator {
             }
         }
         
-        bintray {
+        ${bintrayCredential?.let { (bintrayUser, bintrayApiKey) -> """bintray {
             user = "$bintrayUser"
             key = "$bintrayApiKey"
             setPublications("platform")
@@ -395,6 +351,6 @@ object BuildFileGenerator {
                     name = project.version.toString()
                 })
             })
-        }
+        }""" } ?: ""}
     """.trimIndent()
 }
