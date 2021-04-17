@@ -42,9 +42,10 @@ suspend fun main(targetDir: File, moduleName: String) {
 
     val srcDir = File(targetDir, "src/main/kotlin").also { if (!it.exists()) it.mkdirs() }
 
-    val pack = cdkClasses.firstOrNull()?.getDslPackageName() ?: return
-    generators.asFlow().collect {
-        it.run(cdkClasses, srcDir, moduleName, pack)
+    cdkClasses.toList().groupBy(Class<*>::getDslPackageName).forEach { (packageName, classes) ->
+        generators.asFlow().collect {
+            it.run(classes.asFlow(), srcDir, moduleName, packageName)
+        }
     }
 }
 
@@ -57,5 +58,3 @@ fun Class<*>.getTrimmedPackageName() =
     `package`.name.split('.').drop(3).joinToString(".")
 
 fun Class<*>.getDslPackageName() = "jp.justincase.cdkdsl.${getTrimmedPackageName()}"
-
-suspend fun <T> Flow<T>.firstOrNull(): T? = runCatching { first() }.getOrNull()
