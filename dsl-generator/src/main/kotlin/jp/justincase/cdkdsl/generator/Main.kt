@@ -34,6 +34,7 @@ suspend fun main(args: Array<String>) {
 suspend fun main(targetDir: File, moduleName: String) {
     val cdkClasses = ClassPath.from(ClassLoader.getSystemClassLoader()).allClasses.asFlow()
         .filter { it.packageName.startsWith("software.amazon.awscdk") }
+        .filterNot { it.packageName.contains("experimental") }
         .map { it.load() }
         .filter {
             File(it.protectionDomain.codeSource.location.toURI()).name.split('-').dropLast(1)
