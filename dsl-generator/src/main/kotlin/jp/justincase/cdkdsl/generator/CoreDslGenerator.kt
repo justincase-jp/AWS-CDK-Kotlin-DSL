@@ -1,16 +1,16 @@
 package jp.justincase.cdkdsl.generator
 
+import jp.justincase.cdkdsl.generator.utility.superTypesOf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.mapNotNull
-import software.amazon.awscdk.core.Construct
+import software.constructs.IConstruct
 import java.io.File
 import java.lang.reflect.Modifier
-import java.util.*
 
 object CoreDslGenerator : ICdkDslGenerator {
 
-    private val createArgType = arrayOf(Construct::class.java, java.lang.String::class.java)
+    private val createArgType = listOf(IConstruct::class.java, java.lang.String::class.java)
 
     /*
       フィルター条件(インターフェースの場合):
@@ -29,7 +29,7 @@ object CoreDslGenerator : ICdkDslGenerator {
                     }
                 } else {
                     builder.declaredMethods.any {
-                        it.name == "create" && it.parameterCount == 0 || Arrays.equals(it.parameterTypes, createArgType)
+                        it.name == "create" && it.parameterCount == 0 || createArgType.superTypesOf(it.parameterTypes)
                     }
                 }
             }.mapNotNull { (builder, clazz) ->
@@ -46,7 +46,7 @@ object CoreDslGenerator : ICdkDslGenerator {
 
     private fun Class<*>.isResourceTypeBuilder() =
         declaredMethods.singleOrNull { it.name == "create" }?.let {
-            Arrays.equals(it.parameterTypes, createArgType)
+            createArgType.superTypesOf(it.parameterTypes)
         } ?: false
 
     private fun Class<*>.isPropertyOnlyTypeBuilder() =
