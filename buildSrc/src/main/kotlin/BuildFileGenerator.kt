@@ -1,46 +1,49 @@
 import data.Version
 import org.apache.commons.exec.CommandLine
 import org.apache.commons.exec.DefaultExecutor
+import org.apache.commons.exec.environment.EnvironmentUtils
 import java.io.File
 
 object BuildFileGenerator {
 
     private val ci = System.getenv("CI")?.toBoolean() == true
 
+    @Deprecated("Using Bintray")
     fun generateAndBuildForUnhandledCdkVersions(
         kotlinVersion: String,
         projectVersion: String,
         targetDir: File,
-        bintrayUser: String,
-        bintrayApiKey: String
+        githubUser: String,
+        githubToken: String
     ) {
         generateBuildFilesForUnhandledCdkVersions(
             kotlinVersion = kotlinVersion,
             projectVersion = projectVersion,
             targetDir = targetDir,
-            bintrayUser = bintrayUser,
-            bintrayApiKey = bintrayApiKey
+            githubUser = githubUser,
+            githubToken = githubToken
         )
         runGeneratorsForUnhandledCdkVersions(targetDir = targetDir)
     }
 
+    @Deprecated("Using Bintray")
     fun generateAndBuildForLatestVersion(
         kotlinVersion: String,
         projectVersion: String,
         targetDir: File,
-        bintrayUser: String,
-        bintrayApiKey: String
+        githubUser: String,
+        githubToken: String
     ) {
-        PackageManager.modulesForLatestCdkVersions.let { (version, _) ->
+        BintrayPackageManager.modulesForLatestCdkVersions.let { (version, _) ->
             generateBuildFilesForVersion(
                 kotlinVersion = kotlinVersion,
                 cdkVersion = version,
                 projectVersion = projectVersion,
                 targetDir = targetDir,
-                bintrayUser = bintrayUser,
-                bintrayApiKey = bintrayApiKey,
-                generateModules = PackageManager.cdkModulesForVersion.getValue(version).toList(),
-                publishModules = PackageManager.unhandledCdkModulesForVersions.getValue(version).toList()
+                githubUser = githubUser,
+                githubToken = githubToken,
+                generateModules = BintrayPackageManager.cdkModulesForVersion.getValue(version).toList()
+                // publishModules = BintrayPackageManager.unhandledCdkModulesForVersions.getValue(version).toList()
             )
             runGeneratorForVersion(
                 version,
@@ -49,23 +52,24 @@ object BuildFileGenerator {
         }
     }
 
+    @Deprecated("Using Bintray")
     private fun generateBuildFilesForUnhandledCdkVersions(
         kotlinVersion: String,
         projectVersion: String,
         targetDir: File,
-        bintrayUser: String,
-        bintrayApiKey: String
+        githubUser: String,
+        githubToken: String
     ) {
-        PackageManager.unhandledCdkModulesForVersions.forEach { (version, _) ->
+        BintrayPackageManager.unhandledCdkModulesForVersions.forEach { (version, _) ->
             generateBuildFilesForVersion(
                 kotlinVersion = kotlinVersion,
                 cdkVersion = version,
                 projectVersion = projectVersion,
                 targetDir = targetDir,
-                bintrayUser = bintrayUser,
-                bintrayApiKey = bintrayApiKey,
-                generateModules = PackageManager.cdkModulesForVersion.getValue(version).toList(),
-                publishModules = PackageManager.unhandledCdkModulesForVersions.getValue(version).toList()
+                githubUser = githubUser,
+                githubToken = githubToken,
+                generateModules = BintrayPackageManager.cdkModulesForVersion.getValue(version).toList()
+                // publishModules = BintrayPackageManager.unhandledCdkModulesForVersions.getValue(version).toList()
             )
         }
     }
@@ -75,10 +79,10 @@ object BuildFileGenerator {
         cdkVersion: Version,
         projectVersion: String,
         targetDir: File,
-        bintrayUser: String,
-        bintrayApiKey: String,
-        generateModules: List<String>,
-        publishModules: List<String>
+        githubUser: String,
+        githubToken: String,
+        generateModules: List<String>
+        // publishModules: List<String>
     ) {
         val generateDir = File(targetDir, cdkVersion.toString())
         generateDir.mkdirs()
@@ -92,7 +96,9 @@ object BuildFileGenerator {
                     cdkVersion = cdkVersion.toString(),
                     projectVersion = projectVersion,
                     generateModules = generateModules,
-                    publishModules = publishModules
+                    // publishModules = publishModules,
+                    githubUser = githubUser,
+                    githubToken = githubToken
                 )
             )
         }
@@ -117,8 +123,6 @@ object BuildFileGenerator {
                     `get generated build-gradle-kts file as text`(
                         cdkModule = module,
                         cdkVersion = cdkVersion,
-                        bintrayUser = bintrayUser,
-                        bintrayApiKey = bintrayApiKey,
                         projectVersion = projectVersion
                     )
                 )
@@ -146,8 +150,6 @@ object BuildFileGenerator {
                 createNewFile()
                 writeText(
                     `get platform build-gradle-kts file as text`(
-                        bintrayUser = bintrayUser,
-                        bintrayApiKey = bintrayApiKey,
                         modules = generateModules
                     )
                 )
@@ -155,10 +157,11 @@ object BuildFileGenerator {
         }
     }
 
+    @Deprecated("Using Bintray")
     private fun runGeneratorsForUnhandledCdkVersions(
         targetDir: File
     ) {
-        PackageManager.unhandledCdkModulesForVersions.keys.forEach {
+        BintrayPackageManager.unhandledCdkModulesForVersions.keys.forEach {
             runGeneratorForVersion(
                 cdkVersion = it,
                 targetDir = targetDir
@@ -175,7 +178,7 @@ object BuildFileGenerator {
         try {
             executor.setExitValue(0)
             executor.workingDirectory = File(targetDir, cdkVersion.toString())
-            executor.execute(CommandLine.parse("gradle -S generateAll build $parallelIfNotCi"))
+            executor.execute(CommandLine.parse("gradle -S generateAll build $parallelIfNotCi"), EnvironmentUtils.getProcEnvironment())
             executor.watchdog
         } catch (e: Exception) {
             throw e
@@ -183,10 +186,11 @@ object BuildFileGenerator {
         println("Completed generation and build for cdk version $cdkVersion")
     }
 
+    @Deprecated("Using Bintray")
     fun publishForUnhandledCdkVersions(
         targetDir: File
     ) {
-        PackageManager.unhandledCdkModulesForVersions.keys.forEach { version ->
+        BintrayPackageManager.unhandledCdkModulesForVersions.keys.forEach { version ->
             publishForVersion(version, targetDir)
         }
     }
@@ -194,7 +198,7 @@ object BuildFileGenerator {
     fun publishForLatestVersion(
         targetDir: File
     ) {
-        PackageManager.modulesForLatestCdkVersions.first.let { version: Version ->
+        BintrayPackageManager.modulesForLatestCdkVersions.first.let { version: Version ->
             publishForVersion(version, targetDir)
         }
     }
@@ -224,25 +228,38 @@ object BuildFileGenerator {
         cdkVersion: String,
         projectVersion: String,
         generateModules: List<String>,
-        publishModules: List<String>
+        // publishModules: List<String>,
+        githubUser: String,
+        githubToken: String
     ) = """
         import org.w3c.dom.Node
-        import com.jfrog.bintray.gradle.BintrayExtension
         import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
         plugins {
             kotlin("jvm") version "$kotlinVersion"
-            id("maven-publish")
-            id("com.jfrog.bintray") version "1.8.4"
+            `maven-publish`
         }
 
         allprojects {
+            apply(plugin = "maven-publish")
             group = "jp.justincase.aws-cdk-kotlin-dsl"
             version = "$cdkVersion-$projectVersion"
             
             repositories {
                 mavenCentral()
                 mavenLocal()
+            }
+            publishing {
+                repositories {
+                    maven {
+                        name = "GitHubPackages"
+                        url = uri("https://maven.pkg.github.com/justincase-jp/AWS-CDK-Kotlin-DSL")
+                        credentials {
+                            username = "$githubUser"
+                            password = "$githubToken"
+                        }
+                    }
+                }
             }
         }
 
@@ -251,8 +268,7 @@ object BuildFileGenerator {
         }
 
         tasks.register("publishAll") {
-            ${publishModules.joinToString(separator = "\n\t") { "dependsOn(\"$it:bintrayUpload\")" }}
-            dependsOn(":platform:bintrayUpload")
+            ${generateModules.joinToString(separator = "\n\t") { "dependsOn(\"$it:publish\")" }}
         }
         
         tasks.register("generateAll") {
@@ -299,14 +315,10 @@ object BuildFileGenerator {
     private fun `get generated build-gradle-kts file as text`(
         cdkModule: String,
         cdkVersion: Version,
-        bintrayUser: String,
-        bintrayApiKey: String,
         projectVersion: String
     ) = """
         plugins {
             id("java-library")
-            id("maven-publish")
-            id("com.jfrog.bintray")
             kotlin("jvm")
         }
 
@@ -324,7 +336,7 @@ object BuildFileGenerator {
             implementation("jp.justincase.aws-cdk-kotlin-dsl:dsl-common:$projectVersion")
             api("software.amazon.awscdk", "$cdkModule", "$cdkVersion")
             implementation("software.amazon.awscdk", "core", "$cdkVersion")
-            ${PackageManager.moduleDependencyMap.getValue(cdkVersion).getValue(cdkModule)
+            ${BintrayPackageManager.moduleDependencyMap.getValue(cdkVersion).getValue(cdkModule)
         .joinToString("\n\t") { "api(project(\":$it\"))" }}
         }
         
@@ -340,32 +352,14 @@ object BuildFileGenerator {
                 }
             }
         }
-        
-        bintray {
-            user = "$bintrayUser"
-            key = "$bintrayApiKey"
-            setPublications("maven")
-            publish = true
-            pkg(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.PackageConfig> {
-                userOrg = "justincase"
-                repo = "aws-cdk-kotlin-dsl"
-                name = "$cdkModule"
-                version(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.VersionConfig> {
-                    name = project.version.toString()
-                })
-            })
-        }
     """.trimIndent()
 
     private fun `get platform build-gradle-kts file as text`(
-        bintrayUser: String,
-        bintrayApiKey: String,
         modules: List<String>
     ) = """
         plugins {
             `java-platform`
             id("maven-publish")
-            id("com.jfrog.bintray")
         }
         
         dependencies {
@@ -377,24 +371,10 @@ object BuildFileGenerator {
         publishing {
             publications {
                 create<MavenPublication>("platform") {
+                    artifactId = "gradle-platform"
                     from(components["javaPlatform"])
                 }
             }
-        }
-        
-        bintray {
-            user = "$bintrayUser"
-            key = "$bintrayApiKey"
-            setPublications("platform")
-            publish = true
-            pkg(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.PackageConfig> {
-                userOrg = "justincase"
-                repo = "aws-cdk-kotlin-dsl"
-                name = "gradle-platform"
-                version(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.VersionConfig> {
-                    name = project.version.toString()
-                })
-            })
         }
     """.trimIndent()
 }

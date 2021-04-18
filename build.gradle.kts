@@ -29,11 +29,11 @@ allprojects {
 
 // todo create bintray package task
 tasks {
-    if (System.getenv("bintrayApiKey") != null || System.getenv()["bintrayApiKey"] != null || project.hasProperty("bintrayApiKey")) {
-        val bintrayUser = System.getenv("bintrayUser") ?: System.getenv()["bintrayUser"]
-        ?: project.findProperty("bintrayUser") as String
-        val bintrayKey = System.getenv("bintrayApiKey") ?: System.getenv()["bintrayApiKey"]
-        ?: project.findProperty("bintrayApiKey") as String
+    if (System.getenv("GITHUB_TOKEN") != null || System.getenv()["GITHUB_TOKEN"] != null || project.hasProperty("GITHUB_TOKEN")) {
+        val bintrayUser = System.getenv("GITHUB_USER") ?: System.getenv()["GITHUB_USER"]
+        ?: project.findProperty("GITHUB_USER") as String
+        val bintrayKey = System.getenv("GITHUB_TOKEN") ?: System.getenv()["GITHUB_TOKEN"]
+        ?: project.findProperty("GITHUB_TOKEN") as String
 
         val genLatest = register("generateAndBuildForLatestVersion") {
             group = "cdk-dsl"
@@ -68,14 +68,14 @@ tasks {
         val createPackages = register("createBintrayPackages") {
             group = "cdk-dsl"
             doLast {
-                PackageManager.createBintrayPackages(bintrayUser, bintrayKey)
+                BintrayPackageManager.createBintrayPackages(bintrayUser, bintrayKey)
             }
         }
 
         register("publishForLatestVersion") {
             group = "cdk-dsl"
             dependsOn(genLatest)
-            dependsOn(createPackages)
+            // dependsOn(createPackages)
             doLast {
                 BuildFileGenerator.publishForLatestVersion(File(buildDir, "cdkdsl"))
             }
