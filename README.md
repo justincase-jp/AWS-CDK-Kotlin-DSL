@@ -18,8 +18,8 @@ Gradle Kotlin DSL
 
 ```kotlin
 repositories {
-  jcenter()
-  maven(url = "https://dl.bintray.com/justincase/aws-cdk-kotlin-dsl")
+  mavenCentral()
+  maven(url = "https://cdkt.jfrog.io/artifactory/z")
 }
 
 dependencies {
