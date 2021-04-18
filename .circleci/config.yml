@@ -1,13 +1,6 @@
 version: 2.1
 
 jobs:
-  buildLatest:
-    docker:
-      - image: gradle:6.0.1-jdk8
-    steps:
-      - checkout
-      - run: gradle -S buildLatest
-
   buildUnhandled:
     docker:
       - image: gradle:6.0.1-jdk8
