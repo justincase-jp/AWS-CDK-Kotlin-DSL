@@ -238,6 +238,7 @@ object BuildFileGenerator {
 
         ${publishModules?.let { """tasks.register("publishAll") {
             ${publishModules.joinToString(separator = "\n$t$t$t") { """dependsOn("$it:publish")""" }}
+            dependsOn(":platform:publish")
         }""" } ?: "" }
         
         tasks.register("generateAll") {
