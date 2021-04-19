@@ -1,7 +1,6 @@
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import data.BintrayVersionJson
 import data.PomArtifact
 import data.ResponseJson
 import data.Version
@@ -63,24 +62,30 @@ object PackageManager {
 
     val latestCdkDslVersions = SuspendedLazy {
         val results = withContext(IO) {
-            println("Start to get latest package version from bintray")
+            println("Start to get latest package version from Artifactory")
             allCdkModules().map { module -> async {
-                val bintrayVersionApiUrl = "$bintrayApiBaseUrl/$module/versions/_latest"
-                println(bintrayVersionApiUrl)
+                val dslMavenMetadataUrl =
+                    "https://cdkt.jfrog.io/artifactory/z/jp/justincase/aws-cdk-kotlin-dsl/$module/maven-metadata.xml"
+                println(dslMavenMetadataUrl)
                 val response =
-                    client.get<HttpResponse>(bintrayVersionApiUrl)
+                    client.get<HttpResponse>(dslMavenMetadataUrl)
 
                 if (response.status != HttpStatusCode.OK) {
                     println("$module may not have published CDK DSL versions yet")
                     return@async module to null
                 }
-                val versionJson = jacksonObjectMapper().readValue<BintrayVersionJson>(response.readText())
-                val (cdkVersionString, dslVersionString) = versionJson.name.split('-')
+                @Suppress("BlockingMethodInNonBlockingContext")
+                val doc =
+                    DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(response.content.toInputStream())
+
+                val (cdkVersionString, dslVersionString) =
+                    doc.getElementsByTagName("latest").item(0).textContent.split('-')
+
                 module to (Version(cdkVersionString) to Version(dslVersionString))
             } }
         }
         val versions = results.associate { it.await() }
-        println("Completed getting latest package version from bintray")
+        println("Completed getting latest package version from Artifactory")
         versions
     }
 
