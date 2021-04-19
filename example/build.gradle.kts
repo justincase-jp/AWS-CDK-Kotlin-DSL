@@ -21,14 +21,7 @@ application.mainClass.set("jp.justincase.cdkdsl.example.Main")
 
 repositories {
   mavenCentral()
-  maven {
-      url = uri("https://maven.pkg.github.com/justincase-jp/AWS-CDK-Kotlin-DSL")
-      credentials {
-          username = ""
-          username =
-              System.getenv("GITHUB_TOKEN") ?: "${findProperty("GITHUB_TOKEN") ?: "unset"}"
-      }
-  }
+  maven(url = "https://cdkt.jfrog.io/artifactory/z")
 }
 
 dependencies {
