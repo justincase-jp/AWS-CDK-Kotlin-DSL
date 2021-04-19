@@ -9,6 +9,16 @@ object BuildFileGenerator {
     private const val t = "    "
     private val ci = System.getenv("CI")?.toBoolean() == true
 
+    suspend fun buildLatest(
+        kotlinVersion: String,
+        projectVersion: String?,
+        targetDir: File,
+        githubCredential: Pair<String, String>?
+    ) =
+        PackageManager.cdkModules().takeIf { it.isNotEmpty() }?.lastKey()?.let { version ->
+            buildSpecified(kotlinVersion, projectVersion, targetDir, githubCredential, version)
+        }
+
     suspend fun buildUnhandled(
         kotlinVersion: String,
         projectVersion: String?,
@@ -137,6 +147,18 @@ object BuildFileGenerator {
             throw e
         }
         println("Completed generation and build for cdk version $cdkVersion")
+    }
+
+    suspend fun publishLatest(
+        kotlinVersion: String,
+        projectVersion: String,
+        targetDir: File,
+        bintrayCredential: Pair<String, String>
+    ) {
+        PackageManager.cdkModules().takeIf { it.isNotEmpty() }?.lastKey()?.let { version ->
+            buildSpecified(kotlinVersion, projectVersion, targetDir, bintrayCredential, version)
+            publish(version, targetDir)
+        }
     }
 
     suspend fun publishUnhandled(

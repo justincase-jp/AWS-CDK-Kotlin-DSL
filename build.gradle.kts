@@ -50,6 +50,20 @@ tasks {
             }
         }
 
+        if (dslVersion != null) create("publishLatest") {
+            group = "cdk-dsl"
+            dependsOn(getByPath(":dsl-generator:publishToMavenLocal"))
+            dependsOn(getByPath(":dsl-common:publishToMavenLocal"))
+            doLastBlocking {
+                BuildFileGenerator.publishLatest(
+                    kotlinVersion,
+                    dslVersion,
+                    File(buildDir, "cdkdsl"),
+                    githubCredential
+                )
+            }
+        }
+
         if (dslVersion != null) create("publishUnhandled") {
             group = "cdk-dsl"
             dependsOn(getByPath(":dsl-generator:publishToMavenLocal"))
@@ -62,6 +76,20 @@ tasks {
                     githubCredential
                 )
             }
+        }
+    }
+
+    create("buildLatest") {
+        group = "cdk-dsl"
+        dependsOn(getByPath(":dsl-generator:publishToMavenLocal"))
+        dependsOn(getByPath(":dsl-common:publishToMavenLocal"))
+        doLastBlocking {
+            BuildFileGenerator.buildLatest(
+                kotlinVersion,
+                dslVersion,
+                File(buildDir, "cdkdsl"),
+                null
+            )
         }
     }
 
