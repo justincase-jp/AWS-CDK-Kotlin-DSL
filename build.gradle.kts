@@ -29,12 +29,12 @@ allprojects {
 
 tasks {
     if (System.getenv("GITHUB_TOKEN") != null || System.getenv()["GITHUB_TOKEN"] != null || project.hasProperty("GITHUB_TOKEN")) {
-        val bintrayUser = System.getenv("GITHUB_USER") ?: System.getenv()["GITHUB_USER"]
+        val githubUser = System.getenv("GITHUB_USER") ?: System.getenv()["GITHUB_USER"]
         ?: project.findProperty("GITHUB_USER") as String
-        val bintrayKey = System.getenv("GITHUB_TOKEN") ?: System.getenv()["GITHUB_TOKEN"]
+        val githubKey = System.getenv("GITHUB_TOKEN") ?: System.getenv()["GITHUB_TOKEN"]
         ?: project.findProperty("GITHUB_TOKEN") as String
 
-        val bintrayCredential = bintrayUser to bintrayKey
+        val githubCredential = githubUser to githubKey
 
         create("buildUnhandled") {
             group = "cdk-dsl"
@@ -45,7 +45,7 @@ tasks {
                     kotlinVersion,
                     dslVersion,
                     File(buildDir, "cdkdsl"),
-                    bintrayCredential
+                    githubCredential
                 )
             }
         }
@@ -59,7 +59,7 @@ tasks {
                     kotlinVersion,
                     dslVersion,
                     File(buildDir, "cdkdsl"),
-                    bintrayCredential
+                    githubCredential
                 )
             }
         }
