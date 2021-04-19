@@ -3,7 +3,6 @@ import data.Version
 plugins {
     kotlin("jvm") version "1.4.10"
     id("maven-publish")
-    id("com.jfrog.bintray") version "1.8.4"
 }
 
 tasks.getByName<Wrapper>("wrapper") {
@@ -51,16 +50,8 @@ tasks {
             }
         }
 
-        val createBintrayPackages by creating {
-            group = "cdk-dsl"
-            doLastBlocking {
-                PackageManager.createBintrayPackages(bintrayUser, bintrayKey)
-            }
-        }
-
         if (dslVersion != null) create("publishUnhandled") {
             group = "cdk-dsl"
-            dependsOn(createBintrayPackages)
             dependsOn(getByPath(":dsl-generator:publishToMavenLocal"))
             dependsOn(getByPath(":dsl-common:publishToMavenLocal"))
             doLastBlocking {

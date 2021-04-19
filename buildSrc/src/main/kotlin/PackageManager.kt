@@ -1,18 +1,16 @@
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import data.*
+import data.BintrayVersionJson
+import data.PomArtifact
+import data.ResponseJson
 import data.Version
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.features.*
-import io.ktor.client.features.auth.*
-import io.ktor.client.features.auth.providers.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
-import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.content.*
+import io.ktor.http.*
 import io.ktor.util.*
 import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.Dispatchers.IO
@@ -197,43 +195,6 @@ object PackageManager {
                     }
                     ?: true
             }
-
-    @UseExperimental(KtorExperimentalAPI::class)
-    suspend fun createBintrayPackages(
-        bintrayUser: String,
-        bintrayApiKey: String
-    ) {
-        val client = HttpClient(CIO) {
-            install(Auth) {
-                basic {
-                    username = bintrayUser
-                    password = bintrayApiKey
-                }
-            }
-            expectSuccess = false
-        }
-        withContext(IO) {
-            allCdkModules().map {
-                async {
-                    if (client.get<HttpStatusCode>("$bintrayApiBaseUrl/$it") != HttpStatusCode.OK) {
-                        client.post<String>(bintrayApiBaseUrl) {
-                            body = TextContent(
-                                contentType = ContentType.Application.Json,
-                                text = jacksonObjectMapper().writeValueAsString(
-                                    BintrayCreatePackageRequestJson(
-                                        name = it,
-                                        licenses = listOf("Apache-2.0"),
-                                        vcsUrl = "https://github.com/justincase-jp/AWS-CDK-Kotlin-DSL"
-                                    )
-                                )
-                            )
-                        }
-                        println("Package $it is created")
-                    }
-                }
-            }.forEach { it.await() }
-        }
-    }
 
     private fun NodeList.asList() =
         List(length, ::item)
