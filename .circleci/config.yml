@@ -3,21 +3,21 @@ version: 2.1
 jobs:
   buildUnhandled:
     docker:
-      - image: gradle:6.0.1-jdk8
+      - image: sdyip/gradle:7.0
     steps:
       - checkout
       - run: gradle -S buildUnhandled
 
   buildSpecified:
     docker:
-      - image: gradle:6.0.1-jdk8
+      - image: sdyip/gradle:7.0
     steps:
       - checkout
       - run: gradle -S buildSpecified
 
   publishUnhandled:
     docker:
-      - image: gradle:6.0.1-jdk8
+      - image: sdyip/gradle:7.0
     steps:
       - checkout
       - run: |
@@ -28,7 +28,7 @@ jobs:
 
   publishDslCommon:
     docker:
-      - image: gradle:6.0.1-jdk8
+      - image: sdyip/gradle:7.0
     steps:
       - checkout
       - run: "gradle -S :dsl-common:publish"

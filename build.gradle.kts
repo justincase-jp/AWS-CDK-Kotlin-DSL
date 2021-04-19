@@ -5,8 +5,8 @@ plugins {
     id("maven-publish")
 }
 
-tasks.getByName<Wrapper>("wrapper") {
-    gradleVersion = "6.2.2"
+tasks.wrapper {
+    gradleVersion = "7.0"
 }
 
 fun String.removePrefixOrNull(prefix: String): String? =
