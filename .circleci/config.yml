@@ -1,13 +1,6 @@
 version: 2.1
 
 jobs:
-  buildLatest:
-    docker:
-      - image: gradle:6.0.1-jdk8
-    steps:
-      - checkout
-      - run: gradle -S buildLatest
-
   buildUnhandled:
     docker:
       - image: gradle:6.0.1-jdk8
@@ -22,7 +15,7 @@ jobs:
       - checkout
       - run: gradle -S buildSpecified
 
-  publishUnhandledAndLatest:
+  publishUnhandled:
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
@@ -31,7 +24,7 @@ jobs:
           if [ -z ${CIRCLE_TAG+x} ]; then
             git ls-remote --exit-code origin refs/tags/v"${CIRCLE_BRANCH#release/}"
           fi
-          gradle -S publishUnhandled publishLatest
+          gradle -S publishUnhandled
 
   publishDslCommon:
     docker:
@@ -45,19 +38,18 @@ workflows:
 
   untagged:
     jobs:
-      - buildLatest
       - buildUnhandled
       - buildSpecified
   current:
     jobs:
-      - publishUnhandledAndLatest
+      - publishUnhandled
     triggers:
       - schedule:
           cron: 0 5 * * *
           filters: { branches: { only: /^release\/.*/ } }
   all:
     jobs:
-      - publishUnhandledAndLatest:
+      - publishUnhandled:
           filters:
             tags: { only: /^v.*/ }
             branches: { only: /x^/ }

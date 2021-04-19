@@ -111,7 +111,7 @@ object PackageManager {
             versions
         }
 
-    val cdkModules = SuspendedLazy<SortedMap<Version, out List<String>>> {
+    val cdkModules = SuspendedLazy<Map<Version, List<String>>> {
         cdkVersions()
             .asSequence()
             .flatMap { (module, versions) ->
