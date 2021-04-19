@@ -2,6 +2,7 @@
 import data.Version
 import org.apache.commons.exec.CommandLine
 import org.apache.commons.exec.DefaultExecutor
+import org.apache.commons.exec.environment.EnvironmentUtils
 import java.io.File
 
 object BuildFileGenerator {
@@ -12,17 +13,17 @@ object BuildFileGenerator {
         kotlinVersion: String,
         projectVersion: String?,
         targetDir: File,
-        bintrayCredential: Pair<String, String>?
+        githubCredential: Pair<String, String>?
     ) =
         PackageManager.unhandledCdkModules().keys.forEach { version ->
-            buildSpecified(kotlinVersion, projectVersion, targetDir, bintrayCredential, version)
+            buildSpecified(kotlinVersion, projectVersion, targetDir, githubCredential, version)
         }
 
     suspend fun buildSpecified(
         kotlinVersion: String,
         projectVersion: String?,
         targetDir: File,
-        bintrayCredential: Pair<String, String>?,
+        githubCredential: Pair<String, String>?,
         version: Version
     ) =
         kotlin.run {
@@ -31,9 +32,9 @@ object BuildFileGenerator {
                 cdkVersion = version,
                 projectVersion = projectVersion ?: "unspecified",
                 targetDir = targetDir,
-                bintrayCredential = bintrayCredential,
+                githubCredential = githubCredential,
                 generateModules = PackageManager.cdkModules().getOrDefault(version, listOf()),
-                publishModules = bintrayCredential?.let {
+                publishModules = githubCredential?.let {
                     projectVersion?.let {
                         PackageManager.getUnpublishedModules(version, Version(it))
                     }
@@ -50,7 +51,7 @@ object BuildFileGenerator {
         cdkVersion: Version,
         projectVersion: String,
         targetDir: File,
-        bintrayCredential: Pair<String, String>?,
+        githubCredential: Pair<String, String>?,
         generateModules: List<String>,
         publishModules: List<String>?
     ) {
@@ -65,7 +66,8 @@ object BuildFileGenerator {
                     cdkVersion = cdkVersion.toString(),
                     projectVersion = projectVersion,
                     generateModules = generateModules,
-                    publishModules = publishModules
+                    publishModules = publishModules,
+                    githubCredential = githubCredential
                 )
             )
         }
@@ -88,7 +90,6 @@ object BuildFileGenerator {
                     `get generated build-gradle-kts file as text`(
                         cdkModule = module,
                         cdkVersion = cdkVersion,
-                        bintrayCredential = bintrayCredential,
                         projectVersion = projectVersion
                     )
                 )
@@ -114,7 +115,6 @@ object BuildFileGenerator {
             File(platformDir, "build.gradle.kts").apply {
                 writeText(
                     `get platform build-gradle-kts file as text`(
-                        bintrayCredential = bintrayCredential,
                         modules = generateModules
                     )
                 )
@@ -131,7 +131,7 @@ object BuildFileGenerator {
         try {
             executor.setExitValue(0)
             executor.workingDirectory = File(targetDir, cdkVersion.toString())
-            executor.execute(CommandLine.parse("gradle -S generateAll build $parallelIfNotCi"))
+            executor.execute(CommandLine.parse("gradle -S generateAll build $parallelIfNotCi"), EnvironmentUtils.getProcEnvironment())
             executor.watchdog
         } catch (e: Exception) {
             throw e
@@ -176,19 +176,19 @@ object BuildFileGenerator {
         cdkVersion: String,
         projectVersion: String,
         generateModules: List<String>,
-        publishModules: List<String>?
+        publishModules: List<String>?,
+        githubCredential: Pair<String, String>?
     ) = """
         import org.w3c.dom.Node
-        import com.jfrog.bintray.gradle.BintrayExtension
         import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
         plugins {
             kotlin("jvm") version "$kotlinVersion"
-            id("maven-publish")
-            id("com.jfrog.bintray") version "1.8.4"
+            `maven-publish`
         }
 
         allprojects {
+            apply(plugin = "maven-publish")
             group = "jp.justincase.aws-cdk-kotlin-dsl"
             version = "$cdkVersion-$projectVersion"
             
@@ -196,6 +196,18 @@ object BuildFileGenerator {
                 mavenCentral()
                 mavenLocal()
             }
+            ${githubCredential?.let { (githubUser, githubToken) -> """publishing {
+                repositories {
+                    maven {
+                        name = "GitHubPackages"
+                        url = uri("https://maven.pkg.github.com/justincase-jp/AWS-CDK-Kotlin-DSL")
+                        credentials {
+                            username = "$githubUser"
+                            password = "$githubToken"
+                        }
+                    }
+                }
+            }""" }}
         }
 
         tasks.withType<KotlinCompile> {
@@ -203,8 +215,7 @@ object BuildFileGenerator {
         }
 
         ${publishModules?.let { """tasks.register("publishAll") {
-            ${publishModules.joinToString(separator = "\n$t$t$t") { """dependsOn("$it:bintrayUpload")""" }}
-            dependsOn(":platform:bintrayUpload")
+            ${publishModules.joinToString(separator = "\n$t$t$t") { """dependsOn("$it:publish")""" }}
         }""" } ?: "" }
         
         tasks.register("generateAll") {
@@ -251,13 +262,10 @@ object BuildFileGenerator {
     private suspend fun `get generated build-gradle-kts file as text`(
         cdkModule: String,
         cdkVersion: Version,
-        bintrayCredential: Pair<String, String>?,
         projectVersion: String
     ) = """
         plugins {
             id("java-library")
-            id("maven-publish")
-            id("com.jfrog.bintray")
             kotlin("jvm")
         }
 
@@ -295,31 +303,14 @@ object BuildFileGenerator {
                 }
             }
         }
-        
-        ${bintrayCredential?.let { (bintrayUser, bintrayApiKey) -> """bintray {
-            user = "$bintrayUser"
-            key = "$bintrayApiKey"
-            setPublications("maven")
-            publish = true
-            pkg(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.PackageConfig> {
-                userOrg = "justincase"
-                repo = "aws-cdk-kotlin-dsl"
-                name = "$cdkModule"
-                version(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.VersionConfig> {
-                    name = project.version.toString()
-                })
-            })
-        }""" } ?: ""}
     """.trimIndent()
 
     private fun `get platform build-gradle-kts file as text`(
-        bintrayCredential: Pair<String, String>?,
         modules: List<String>
     ) = """
         plugins {
             `java-platform`
             id("maven-publish")
-            id("com.jfrog.bintray")
         }
         
         dependencies {
@@ -333,24 +324,10 @@ object BuildFileGenerator {
         publishing {
             publications {
                 create<MavenPublication>("platform") {
+                    artifactId = "gradle-platform"
                     from(components["javaPlatform"])
                 }
             }
         }
-        
-        ${bintrayCredential?.let { (bintrayUser, bintrayApiKey) -> """bintray {
-            user = "$bintrayUser"
-            key = "$bintrayApiKey"
-            setPublications("platform")
-            publish = true
-            pkg(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.PackageConfig> {
-                userOrg = "justincase"
-                repo = "aws-cdk-kotlin-dsl"
-                name = "gradle-platform"
-                version(delegateClosureOf<com.jfrog.bintray.gradle.BintrayExtension.VersionConfig> {
-                    name = project.version.toString()
-                })
-            })
-        }""" } ?: ""}
     """.trimIndent()
 }
