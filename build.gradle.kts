@@ -68,7 +68,7 @@ tasks {
         val createPackages = register("createBintrayPackages") {
             group = "cdk-dsl"
             doLast {
-                BintrayPackageManager.createBintrayPackages(bintrayUser, bintrayKey)
+                PackageManager.createBintrayPackages(bintrayUser, bintrayKey)
             }
         }
 

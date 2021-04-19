@@ -15,13 +15,15 @@ import io.ktor.http.content.*
 import io.ktor.util.*
 import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
 import org.w3c.dom.Node
 import org.w3c.dom.NodeList
 import javax.xml.parsers.DocumentBuilderFactory
 
-@Deprecated("Bintray will end service. Moving to ")
-object BintrayPackageManager {
+object PackageManager {
 
     private const val requestUrl =
         "https://search.maven.org/solrsearch/select?q=g:software.amazon.awscdk&rows=200&wt=json&start=0"
@@ -61,7 +63,6 @@ object BintrayPackageManager {
         }.map { it.a }.filter { "monocdk" !in it }.toSet()
     }
 
-    @Deprecated(message = "Using Bintray")
     val bintrayPackageLatestVersion: Map<String, Version> by lazy {
         val job = GlobalScope.async {
             println("Start to get latest package version from bintray")
@@ -103,7 +104,7 @@ object BintrayPackageManager {
                     module to doc.getElementsByTagName("versions").item(0).childNodes.asList()
                         .filter { it.nodeName == "version" }
                         .map { Version(it.textContent) }
-                        .filter { it > leastVersion && it.post.isEmpty() }
+                        .filter { it > leastVersion }
                 }.filter {
                     it.second.isNotEmpty()
                 }.toList().toMap()
@@ -144,14 +145,12 @@ object BintrayPackageManager {
         map.toSortedMap().run { lastKey() to getValue(lastKey()) }
     }
 
-    @Deprecated("Using Bintray")
     val unhandledCdkVersions: Map<String, List<Version>> by lazy {
         cdkVersions.mapValues { pair ->
             pair.value.filter { it > bintrayPackageLatestVersion.getValue(pair.key) }
         }
     }
 
-    @Deprecated("Using Bintray")
     val unhandledCdkModulesForVersions: Map<Version, Set<String>> by lazy {
         val map = mutableMapOf<Version, MutableSet<String>>()
         unhandledCdkVersions.forEach { (module, versions) ->
@@ -169,12 +168,9 @@ object BintrayPackageManager {
     val moduleDependencyMap: Map<Version, Map<String, List<String>>> by lazy {
         runSuspend {
             println("Start to get dependencies of CDK modules")
-            // (unhandledCdkModulesForVersions + modulesForLatestCdkVersions).toList().asFlow().map { (version, modules) ->
-            flow {
-                emit(modulesForLatestCdkVersions)
-            }.map { (version, modules) ->
+            (unhandledCdkModulesForVersions + modulesForLatestCdkVersions).toList().asFlow().map { (version, modules) ->
                 println("version: $version, module count: ${modules.size}.")
-                version to modules.associateWith { module ->
+                version to modules.map { module ->
                     val targetUrl =
                         "https://repo1.maven.org/maven2/software/amazon/awscdk/$module/$version/$module-${version}.pom"
                     println(targetUrl)
@@ -192,15 +188,14 @@ object BintrayPackageManager {
                             node.childNodes.asList().single { it.nodeName == "version" }.textContent
                         )
                     }.filter { it.groupId == "software.amazon.awscdk" }.map { it.artifactId }
-                    list
-                }
+                    module to list
+                }.toMap()
             }.toList().toMap().apply {
                 println("Completed getting dependencies of CDK modules")
             }
         }
     }
 
-    @Deprecated("Using Bintray")
     @UseExperimental(KtorExperimentalAPI::class)
     fun createBintrayPackages(
         bintrayUser: String,
