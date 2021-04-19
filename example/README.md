@@ -7,7 +7,7 @@ AWS CDK Kotlin DSL Example
 
 * AWS CDK
 ```sh
-npm i -g aws-cdk@1.11.0
+npm i -g aws-cdk@1.98.0
 ```
 
 *`npm` is required to install the actual AWS CDK*

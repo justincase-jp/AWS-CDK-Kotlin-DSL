@@ -1,11 +1,11 @@
 plugins {
-  kotlin("jvm") version "1.3.50"
+  kotlin("jvm") version "1.4.32"
   application
 }
 
 tasks {
-  named<Wrapper>("wrapper") {
-    gradleVersion = "5.6.2"
+  wrapper {
+    gradleVersion = "7.0"
   }
 
   compileKotlin {
@@ -17,17 +17,14 @@ tasks {
     outputs.dir("cdk.out")
   }
 }
-
-application {
-  mainClassName = "jp.justincase.cdkdsl.example.Main"
-}
+application.mainClass.set("jp.justincase.cdkdsl.example.Main")
 
 repositories {
-  jcenter()
-  maven(url = "https://dl.bintray.com/justincase/aws-cdk-kotlin-dsl")
+  mavenCentral()
+  maven(url = "https://cdkt.jfrog.io/artifactory/z")
 }
 
 dependencies {
   implementation(kotlin("stdlib"))
-  implementation("jp.justincase.aws-cdk-kotlin-dsl", "s3", "1.11.0.DEVPREVIEW-0.5.2")
+  implementation("jp.justincase.aws-cdk-kotlin-dsl", "s3", "1.98.0-0.6.11")
 }
