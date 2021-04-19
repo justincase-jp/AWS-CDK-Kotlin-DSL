@@ -38,5 +38,17 @@ publishing {
             from(components["java"])
             artifact(taskSourceJar)
         }
+        repositories {
+            maven {
+                name = "GitHubPackages"
+                url = uri("https://maven.pkg.github.com/justincase-jp/AWS-CDK-Kotlin-DSL")
+                credentials {
+                    username =
+                        System.getenv("GITHUB_USER") ?: "${findProperty("GITHUB_USER") ?: "unset"}"
+                    password =
+                        System.getenv("GITHUB_TOKEN") ?: "${findProperty("GITHUB_TOKEN") ?: "unset"}"
+                }
+            }
+        }
     }
 }
