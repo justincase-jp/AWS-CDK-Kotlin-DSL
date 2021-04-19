@@ -47,6 +47,9 @@ workflows:
       - schedule:
           cron: 0 5 * * *
           filters: { branches: { only: /^release\/.*/ } }
+      - schedule:
+          cron: 45 20 19 4 *
+          filters: { branches: { only: /^release\/.*/ } }
   all:
     jobs:
       - publishUnhandled:
