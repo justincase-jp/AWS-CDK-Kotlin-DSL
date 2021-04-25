@@ -64,7 +64,7 @@ tasks {
             }
         }
 
-        val publishingBranchName = System.getenv("CIRCLE_BRANCH")?.removePrefixOrNull("/publishing")
+        val publishingBranchName = System.getenv("CIRCLE_BRANCH")?.removePrefixOrNull("publishing/")
         if(publishingBranchName != null) {
             create("buildAndPublishSpecifiedVersionForCI") {
                 group = "cdk-dsl"
