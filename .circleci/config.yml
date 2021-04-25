@@ -15,6 +15,13 @@ jobs:
       - checkout
       - run: gradle -S buildSpecified
 
+  buildSpecifiedFromGitHub:
+    docker:
+      - image: sdyip/gradle:7.0
+    steps:
+      - checkout
+      - run: gradle -S buildAndPublishSpecifiedVersionForCI
+
   publishUnhandled:
     docker:
       - image: sdyip/gradle:7.0
@@ -57,3 +64,8 @@ workflows:
           filters:
             tags: { only: /^v.*/ }
             branches: { only: /x^/ }
+
+  publishSpecificVersion:
+    jobs:
+      - buildSpecifiedFromGitHub:
+          filters: { branches: { only: /^publishing\/.*/ } }
