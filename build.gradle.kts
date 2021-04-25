@@ -75,14 +75,14 @@ tasks {
                 doLastBlocking {
                     BuildFileGenerator.buildSpecified(
                         kotlinVersion,
-                        cdk,
+                        dsl,
                         File(buildDir, "cdkdsl"),
                         githubCredential,
-                        Version(dsl)
+                        Version(cdk)
                     )
                     BuildFileGenerator.publishSpecified(
                         File(buildDir, "cdkdsl"),
-                        Version(dsl)
+                        Version(cdk)
                     )
                 }
             }
