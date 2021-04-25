@@ -63,6 +63,24 @@ tasks {
                 )
             }
         }
+
+        val publishingBranchName = System.getenv("CIRCLE_BRANCH")?.removePrefixOrNull("/publishing")
+        if(publishingBranchName != null) {
+            create("buildAndPublishSpecifiedVersionForCI") {
+                group = "cdk-dsl"
+                dependsOn(getByPath(":dsl-generator:publishToMavenLocal"))
+                dependsOn(getByPath(":dsl-common:publishToMavenLocal"))
+                doLastBlocking {
+                    BuildFileGenerator.buildSpecified(
+                        kotlinVersion,
+                        dslVersion,
+                        File(buildDir, "cdkdsl"),
+                        githubCredential,
+                        Version(publishingBranchName)
+                    )
+                }
+            }
+        }
     }
 
     create("buildSpecified") {
