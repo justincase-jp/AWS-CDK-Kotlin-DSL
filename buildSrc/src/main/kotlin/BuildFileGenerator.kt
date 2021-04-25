@@ -25,8 +25,7 @@ object BuildFileGenerator {
         targetDir: File,
         githubCredential: Pair<String, String>?,
         version: Version
-    ) =
-        kotlin.run {
+    ) = kotlin.run {
             prepareBuild(
                 kotlinVersion = kotlinVersion,
                 cdkVersion = version,
@@ -45,6 +44,13 @@ object BuildFileGenerator {
                 targetDir
             )
         }
+
+    fun publishSpecified(
+        targetDir: File,
+        version: Version
+    ) = kotlin.run {
+        publish(version, targetDir)
+    }
 
     private suspend fun prepareBuild(
         kotlinVersion: String,

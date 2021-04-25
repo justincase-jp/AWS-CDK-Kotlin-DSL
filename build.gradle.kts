@@ -78,6 +78,10 @@ tasks {
                         githubCredential,
                         Version(publishingBranchName)
                     )
+                    BuildFileGenerator.publishSpecified(
+                        File(buildDir, "cdkdsl"),
+                        Version(publishingBranchName)
+                    )
                 }
             }
         }
