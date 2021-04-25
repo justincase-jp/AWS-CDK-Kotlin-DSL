@@ -70,17 +70,19 @@ tasks {
                 group = "cdk-dsl"
                 dependsOn(getByPath(":dsl-generator:publishToMavenLocal"))
                 dependsOn(getByPath(":dsl-common:publishToMavenLocal"))
+
+                val (cdk, dsl) = publishingBranchName.split('-')
                 doLastBlocking {
                     BuildFileGenerator.buildSpecified(
                         kotlinVersion,
-                        dslVersion,
+                        cdk,
                         File(buildDir, "cdkdsl"),
                         githubCredential,
-                        Version(publishingBranchName)
+                        Version(dsl)
                     )
                     BuildFileGenerator.publishSpecified(
                         File(buildDir, "cdkdsl"),
-                        Version(publishingBranchName)
+                        Version(dsl)
                     )
                 }
             }
