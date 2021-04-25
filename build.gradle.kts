@@ -17,6 +17,7 @@ val awsCdkVersion: String by project
 val dslVersion =
     System.getenv("CIRCLE_TAG")?.removePrefixOrNull("v")
         ?: System.getenv("CIRCLE_BRANCH")?.removePrefixOrNull("release/")
+        ?: System.getenv("CIRCLE_BRANCH")?.removePrefixOrNull("publishing/")
 
 allprojects {
     group = "jp.justincase"
