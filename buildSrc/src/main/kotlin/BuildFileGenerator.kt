@@ -34,9 +34,14 @@ object BuildFileGenerator {
                 githubCredential = githubCredential,
                 generateModules = PackageManager.cdkModules().getOrDefault(version, listOf()),
                 publishModules = githubCredential?.let {
+                    PackageManager.cdkModules().getOrDefault(version, listOf())
+                    /*
+                    todo: 最新ではなく現在のバージョンで判定するようにする。
+                    buildSpecifiedは任意バージョンに対応するべきで、最新版とかの判定は最新ビルドとかの関数でやるべき。
                     projectVersion?.let {
                         PackageManager.getUnpublishedModules(version, Version(it))
                     }
+                    */
                 }
             )
             runBuild(
