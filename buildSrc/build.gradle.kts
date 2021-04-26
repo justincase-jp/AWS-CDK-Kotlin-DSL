@@ -12,8 +12,8 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib-jdk8", KotlinVersion.CURRENT.toString()))
-    implementation("io.ktor:ktor-client-cio:1.3.2")
-    implementation("io.ktor:ktor-client-auth-jvm:1.3.2")
+    implementation("io.ktor:ktor-client-cio:1.3.1")
+    implementation("io.ktor:ktor-client-auth-jvm:1.3.1")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.9.+")
     // https://mvnrepository.com/artifact/org.apache.commons/commons-exec
     implementation("org.apache.commons:commons-exec:1.3")
