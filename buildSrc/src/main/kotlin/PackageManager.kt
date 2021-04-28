@@ -65,7 +65,7 @@ object PackageManager {
             println("Start to get latest package version from Artifactory")
             allCdkModules().map { module -> async {
                 val dslMavenMetadataUrl =
-                    "https://cdkt.jfrog.io/artifactory/z/jp/justincase/aws-cdk-kotlin-dsl/$module/maven-metadata.xml"
+                    "https://chamelania.lemm.io/jp/justincase/aws-cdk-kotlin-dsl/$module/maven-metadata.xml"
                 println(dslMavenMetadataUrl)
                 val response =
                     client.get<HttpResponse>(dslMavenMetadataUrl)
