@@ -21,7 +21,7 @@ application.mainClass.set("jp.justincase.cdkdsl.example.Main")
 
 repositories {
   mavenCentral()
-  maven(url = "https://cdkt.jfrog.io/artifactory/z")
+  maven(url = "https://chamelania.lemm.io")
 }
 
 dependencies {

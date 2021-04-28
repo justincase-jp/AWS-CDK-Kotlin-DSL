@@ -23,7 +23,7 @@ Gradle Kotlin DSL
 ```kotlin
 repositories {
   mavenCentral()
-  maven(url = "https://cdkt.jfrog.io/artifactory/z")
+  maven(url = "https://chamelania.lemm.io")
 }
 
 dependencies {
