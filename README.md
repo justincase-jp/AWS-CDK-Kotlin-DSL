@@ -27,6 +27,6 @@ dependencies {
 }
 ```
 
- 
+
 ## Usage
 Please refer to the [`example`](example) project.
