@@ -8,7 +8,7 @@ plugins {
 
 repositories {
     mavenCentral()
-    maven(url = "https://kotlin.bintray.com/ktor")
+    @Suppress("DEPRECATION") jcenter() // For Ktor Client 1.3.2
 }
 
 dependencies {
