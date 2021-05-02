@@ -35,6 +35,9 @@ object PackageManager {
 
     @UseExperimental(KtorExperimentalAPI::class)
     private val client = HttpClient(CIO) {
+        engine {
+            requestTimeout = 30000
+        }
         install(HttpTimeout)
     }
 
@@ -65,7 +68,7 @@ object PackageManager {
             println("Start to get latest package version from Artifactory")
             allCdkModules().map { module -> async {
                 val dslMavenMetadataUrl =
-                    "https://chamelania.lemm.io/jp/justincase/aws-cdk-kotlin-dsl/$module/maven-metadata.xml"
+                    "https://chamelania.jfrog.io/artifactory/maven/jp/justincase/aws-cdk-kotlin-dsl/$module/maven-metadata.xml"
                 println(dslMavenMetadataUrl)
                 val response =
                     client.get<HttpResponse>(dslMavenMetadataUrl)
