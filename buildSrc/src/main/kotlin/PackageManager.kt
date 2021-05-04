@@ -70,8 +70,19 @@ object PackageManager {
                 val dslMavenMetadataUrl =
                     "https://chamelania.jfrog.io/artifactory/maven/jp/justincase/aws-cdk-kotlin-dsl/$module/maven-metadata.xml"
                 println(dslMavenMetadataUrl)
-                val response =
+
+                val access = flow { emit(
                     client.get<HttpResponse>(dslMavenMetadataUrl)
+                ) }
+                @UseExperimental(ExperimentalCoroutinesApi::class)
+                val response = access
+                    .retry(30) {
+                        it.printStackTrace()
+                        delay(3000)
+                        println("Retrying...")
+                        true
+                    }
+                    .first()
 
                 if (response.status != HttpStatusCode.OK) {
                     println("$module may not have published CDK DSL versions yet")
