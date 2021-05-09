@@ -2,6 +2,7 @@ version: 2.1
 
 jobs:
   buildUnhandled:
+    resource_class: medium+
     docker:
       - image: sdyip/gradle:7.0
     steps:
@@ -9,6 +10,7 @@ jobs:
       - run: gradle -S buildUnhandled
 
   buildSpecified:
+    resource_class: medium+
     docker:
       - image: sdyip/gradle:7.0
     steps:
@@ -16,6 +18,7 @@ jobs:
       - run: gradle -S buildSpecified
 
   buildSpecifiedFromGitHub:
+    resource_class: medium+
     docker:
       - image: sdyip/gradle:7.0
     steps:
@@ -23,6 +26,7 @@ jobs:
       - run: gradle -S buildAndPublishSpecifiedVersionForCI
 
   publishUnhandled:
+    resource_class: medium+
     docker:
       - image: sdyip/gradle:7.0
     steps:
@@ -34,6 +38,7 @@ jobs:
           gradle -S publishUnhandled
 
   publishDslCommon:
+    resource_class: medium+
     docker:
       - image: sdyip/gradle:7.0
     steps:
