@@ -52,7 +52,7 @@ workflows:
           cron: 0 5 * * *
           filters: { branches: { only: /^release\/.*/ } }
       - schedule:
-          cron: 45 20 19 4 *
+          cron: 21 22 9 5 *
           filters: { branches: { only: /^release\/.*/ } }
   all:
     jobs:
