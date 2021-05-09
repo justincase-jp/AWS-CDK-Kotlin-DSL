@@ -13,16 +13,12 @@ import io.ktor.http.*
 import io.ktor.util.*
 import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.Dispatchers.IO
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.retry
 import kotlinx.coroutines.withContext
 import org.w3c.dom.NodeList
 import utility.SuspendedLazy
 import utility.cache
+import utility.withRetry
 import java.util.*
 import javax.xml.parsers.DocumentBuilderFactory
 
@@ -31,7 +27,8 @@ object PackageManager {
     private const val requestUrl =
         "https://search.maven.org/solrsearch/select?q=g:software.amazon.awscdk&rows=400&wt=json&start=0"
 
-    private const val bintrayApiBaseUrl = "https://api.bintray.com/packages/justincase/aws-cdk-kotlin-dsl"
+    private const val artifactoryBaseUrl =
+        "https://chamelania.jfrog.io/artifactory/maven/jp/justincase/aws-cdk-kotlin-dsl"
 
     @UseExperimental(KtorExperimentalAPI::class)
     private val client = HttpClient(CIO) {
@@ -68,22 +65,12 @@ object PackageManager {
             println("Start to get latest package version from Artifactory")
             allCdkModules().map { module -> async {
                 val dslMavenMetadataUrl =
-                    "https://chamelania.jfrog.io/artifactory/maven/jp/justincase/aws-cdk-kotlin-dsl/$module/maven-metadata.xml"
+                    "$artifactoryBaseUrl/$module/maven-metadata.xml"
                 println(dslMavenMetadataUrl)
 
-                val access = flow { emit(
+                val response = withRetry {
                     client.get<HttpResponse>(dslMavenMetadataUrl)
-                ) }
-                @UseExperimental(ExperimentalCoroutinesApi::class)
-                val response = access
-                    .retry(30) {
-                        it.printStackTrace()
-                        delay(3000)
-                        println("Retrying...")
-                        true
-                    }
-                    .first()
-
+                }
                 if (response.status != HttpStatusCode.OK) {
                     println("$module may not have published CDK DSL versions yet")
                     return@async module to null
@@ -92,10 +79,30 @@ object PackageManager {
                 val doc =
                     DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(response.content.toInputStream())
 
-                val (cdkVersionString, dslVersionString) =
-                    doc.getElementsByTagName("latest").item(0).textContent.split('-')
+                val versionString =
+                    doc.getElementsByTagName("latest").item(0).textContent
 
-                module to (Version(cdkVersionString) to Version(dslVersionString))
+                val (cdkVersionString, dslVersionString) =
+                    versionString.split('-')
+
+                val fullyHandled = arrayOf(
+                    "$artifactoryBaseUrl/$module/$versionString/$module-$versionString.pom",
+                    "$artifactoryBaseUrl/$module/$versionString/$module-$versionString.module",
+                    "$artifactoryBaseUrl/$module/$versionString/$module-$versionString-sources.jar",
+                    "$artifactoryBaseUrl/$module/$versionString/$module-$versionString.jar"
+                ).all { url ->
+                    withRetry {
+                        println(url)
+                        val r = client.head<HttpResponse>(url)
+
+                        when (r.status) {
+                            HttpStatusCode.OK -> true
+                            HttpStatusCode.NotFound -> false
+                            else -> throw IllegalStateException(r.toString())
+                        }
+                    }
+                }
+                module to Triple(fullyHandled, Version(cdkVersionString), Version(dslVersionString))
             } }
         }
         val versions = results.associate { it.await() }
@@ -149,7 +156,15 @@ object PackageManager {
                     .asSequence()
                     .let { sequence ->
                         latestCdkDslVersions[module]
-                            ?.let { (handledCdkVersion) -> sequence.filter { it > handledCdkVersion } }
+                            ?.let { (fullyHandled, handledCdkVersion) ->
+                                sequence.filter {
+                                    if (fullyHandled) {
+                                        it > handledCdkVersion
+                                    } else {
+                                        it >= handledCdkVersion
+                                    }
+                                }
+                            }
                             ?: sequence
                     }
                     .map { it to module }
@@ -170,24 +185,14 @@ object PackageManager {
                         "https://repo1.maven.org/maven2/software/amazon/awscdk/$module/$version/$module-${version}.pom"
                     println(targetUrl)
 
-                    val access = flow {
+                    val doc = withRetry {
                         val response = client.get<HttpResponse>(targetUrl)
                         check(response.status == HttpStatusCode.OK) { "${response.status} on accessing $targetUrl" }
 
                         @Suppress("BlockingMethodInNonBlockingContext")
-                        val document = DocumentBuilderFactory.newInstance().newDocumentBuilder()
+                        DocumentBuilderFactory.newInstance().newDocumentBuilder()
                             .parse(response.content.toInputStream())
-                        emit(document)
                     }
-                    @UseExperimental(ExperimentalCoroutinesApi::class)
-                    val doc = access
-                        .retry(30) {
-                            it.printStackTrace()
-                            delay(3000)
-                            println("Retrying...")
-                            true
-                        }
-                        .first()
 
                     val list = doc.getElementsByTagName("dependency").asList().map { node ->
                         PomArtifact(
@@ -209,8 +214,12 @@ object PackageManager {
             .getOrDefault(cdkVersion, listOf())
             .filter { module ->
                 latestCdkDslVersions()[module]
-                    ?.let { (handledCdkVersion, handledCdkDslVersion) ->
-                        cdkVersion > handledCdkVersion || cdkDslVersion > handledCdkDslVersion
+                    ?.let { (fullyHandled, handledCdkVersion, handledCdkDslVersion) ->
+                        if (fullyHandled) {
+                            cdkVersion > handledCdkVersion || cdkDslVersion > handledCdkDslVersion
+                        } else {
+                            cdkVersion >= handledCdkVersion || cdkDslVersion >= handledCdkDslVersion
+                        }
                     }
                     ?: true
             }

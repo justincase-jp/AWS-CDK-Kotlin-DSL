@@ -1,4 +1,7 @@
 import data.Version
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.launch
 
 plugins {
     kotlin("jvm") version "1.4.10"
@@ -29,6 +32,26 @@ allprojects {
 }
 
 tasks {
+    val startGitHubPackagesProxy by creating {
+        doLast {
+            CoroutineScope(IO).launch {
+                try {
+                    println("Starting GitHubPackagesProxy...")
+                    GitHubPackagesProxy.main(arrayOf())
+                } catch (_: java.net.BindException) {
+                    println("Already running.") // Run `gradle --stop` if you are debugging locally
+                }
+            }
+        }
+    }
+    allprojects {
+        tasks.all {
+            if (name.startsWith("publish") || "Publish" in name) {
+                dependsOn(startGitHubPackagesProxy)
+            }
+        }
+    }
+
     if (System.getenv("GITHUB_TOKEN") != null || System.getenv()["GITHUB_TOKEN"] != null || project.hasProperty("GITHUB_TOKEN")) {
         val githubUser = System.getenv("GITHUB_USER") ?: System.getenv()["GITHUB_USER"]
         ?: project.findProperty("GITHUB_USER") as String

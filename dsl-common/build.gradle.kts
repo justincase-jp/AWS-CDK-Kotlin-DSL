@@ -41,7 +41,7 @@ publishing {
         repositories {
             maven {
                 name = "GitHubPackages"
-                url = uri("https://maven.pkg.github.com/justincase-jp/AWS-CDK-Kotlin-DSL")
+                url = uri("http://localhost:38877")
                 credentials {
                     username =
                         System.getenv("GITHUB_USER") ?: "${findProperty("GITHUB_USER") ?: "unset"}"
