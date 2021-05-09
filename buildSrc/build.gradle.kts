@@ -4,10 +4,12 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     `embedded-kotlin`
+    scala
 }
 
 repositories {
     mavenCentral()
+    maven("https://jitpack.io")
     jcenter() // For Ktor Client 1.3.2
 }
 
@@ -19,6 +21,9 @@ dependencies {
     // https://mvnrepository.com/artifact/org.apache.commons/commons-exec
     implementation("org.apache.commons:commons-exec:1.3")
 
+    implementation("org.scala-lang", "scala-library", "2.13.5")
+    implementation("io.github.portfoligno.porterie", "porterie_2.13", "0.3.0")
+    runtimeOnly("org.slf4j", "slf4j-simple", "1.7.30")
 }
 
 tasks.withType<KotlinCompile> {
@@ -29,4 +34,7 @@ tasks.withType<KotlinCompile> {
         languageVersion = LanguageVersion.KOTLIN_1_3.versionString
         freeCompilerArgs = listOf("-Xuse-experimental=kotlin.Experimental")
     }
+}
+tasks.withType<ScalaCompile> {
+    scalaCompileOptions.additionalParameters = listOf("-target:jvm-1.8")
 }

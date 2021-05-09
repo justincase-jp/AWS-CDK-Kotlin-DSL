@@ -200,7 +200,7 @@ object BuildFileGenerator {
                 repositories {
                     maven {
                         name = "GitHubPackages"
-                        url = uri("https://maven.pkg.github.com/justincase-jp/AWS-CDK-Kotlin-DSL")
+                        url = uri("http://localhost:38877")
                         credentials {
                             username = "$githubUser"
                             password = "$githubToken"

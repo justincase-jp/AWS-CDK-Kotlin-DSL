@@ -2,6 +2,7 @@ version: 2.1
 
 jobs:
   buildUnhandled:
+    resource_class: medium+
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
@@ -9,6 +10,7 @@ jobs:
       - run: gradle -S buildUnhandled
 
   buildSpecified:
+    resource_class: medium+
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
@@ -16,6 +18,7 @@ jobs:
       - run: gradle -S buildSpecified
 
   publishUnhandled:
+    resource_class: medium+
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
@@ -27,6 +30,7 @@ jobs:
           gradle -S publishUnhandled
 
   publishDslCommon:
+    resource_class: medium+
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
