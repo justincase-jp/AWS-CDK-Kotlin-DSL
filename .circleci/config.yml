@@ -2,7 +2,7 @@ version: 2.1
 
 jobs:
   buildUnhandled:
-    resource_class: large
+    resource_class: medium+
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
@@ -10,7 +10,7 @@ jobs:
       - run: gradle -S buildUnhandled
 
   buildSpecified:
-    resource_class: large
+    resource_class: medium+
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
@@ -18,7 +18,7 @@ jobs:
       - run: gradle -S buildSpecified
 
   publishUnhandled:
-    resource_class: large
+    resource_class: medium+
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
@@ -30,7 +30,7 @@ jobs:
           gradle -S publishUnhandled
 
   publishDslCommon:
-    resource_class: large
+    resource_class: medium+
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
@@ -52,7 +52,7 @@ workflows:
           cron: 0 5 * * *
           filters: { branches: { only: /^release\/.*/ } }
       - schedule:
-          cron: 45 16 26 6 *
+          cron: 21 22 9 5 *
           filters: { branches: { only: /^release\/.*/ } }
   all:
     jobs:
