@@ -34,7 +34,7 @@ jobs:
 
   publishDslCommon:
     resource_class: medium+
-    environment: { GRADLE_OPTS: -Xmx2g }
+    environment: { GRADLE_OPTS: -Xmx4g }
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
@@ -56,7 +56,7 @@ workflows:
           cron: 0 5 * * *
           filters: { branches: { only: /^release\/.*/ } }
       - schedule:
-          cron: 10 11 29 6 *
+          cron: 47 11 19 7 *
           filters: { branches: { only: /^release\/.*/ } }
   all:
     jobs:
