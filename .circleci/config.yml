@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   buildUnhandled:
     resource_class: medium+
-    environment: { GRADLE_OPTS: -Xmx2g }
+    environment: { GRADLE_OPTS: -Xmx4g }
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
@@ -12,7 +12,7 @@ jobs:
 
   buildSpecified:
     resource_class: medium+
-    environment: { GRADLE_OPTS: -Xmx2g }
+    environment: { GRADLE_OPTS: -Xmx4g }
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
@@ -21,7 +21,7 @@ jobs:
 
   publishUnhandled:
     resource_class: medium+
-    environment: { GRADLE_OPTS: -Xmx2g }
+    environment: { GRADLE_OPTS: -Xmx4g }
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
