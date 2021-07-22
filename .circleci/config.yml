@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   buildUnhandled:
     resource_class: medium+
-    environment: { GRADLE_OPTS: -Xmx4g }
+    environment: { JAVA_TOOL_OPTIONS: -Xmx3g }
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
@@ -12,7 +12,7 @@ jobs:
 
   buildSpecified:
     resource_class: medium+
-    environment: { GRADLE_OPTS: -Xmx4g }
+    environment: { JAVA_TOOL_OPTIONS: -Xmx3g }
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
@@ -21,7 +21,7 @@ jobs:
 
   publishUnhandled:
     resource_class: medium+
-    environment: { GRADLE_OPTS: -Xmx4g }
+    environment: { JAVA_TOOL_OPTIONS: -Xmx3g }
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
@@ -34,7 +34,7 @@ jobs:
 
   publishDslCommon:
     resource_class: medium+
-    environment: { GRADLE_OPTS: -Xmx4g }
+    environment: { JAVA_TOOL_OPTIONS: -Xmx3g }
     docker:
       - image: gradle:6.0.1-jdk8
     steps:
@@ -56,7 +56,7 @@ workflows:
           cron: 0 5 * * *
           filters: { branches: { only: /^release\/.*/ } }
       - schedule:
-          cron: 47 11 19 7 *
+          cron: 57 6 22 7 *
           filters: { branches: { only: /^release\/.*/ } }
   all:
     jobs:
