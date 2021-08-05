@@ -3,6 +3,7 @@ version: 2.1
 jobs:
   buildUnhandled:
     resource_class: medium+
+    environment: { JAVA_TOOL_OPTIONS: -Xmx3g }
     docker:
       - image: sdyip/gradle:7.0
     steps:
@@ -11,6 +12,7 @@ jobs:
 
   buildSpecified:
     resource_class: medium+
+    environment: { JAVA_TOOL_OPTIONS: -Xmx3g }
     docker:
       - image: sdyip/gradle:7.0
     steps:
@@ -27,6 +29,7 @@ jobs:
 
   publishUnhandled:
     resource_class: medium+
+    environment: { JAVA_TOOL_OPTIONS: -Xmx3g }
     docker:
       - image: sdyip/gradle:7.0
     steps:
@@ -39,6 +42,7 @@ jobs:
 
   publishDslCommon:
     resource_class: medium+
+    environment: { JAVA_TOOL_OPTIONS: -Xmx3g }
     docker:
       - image: sdyip/gradle:7.0
     steps:
@@ -58,6 +62,9 @@ workflows:
     triggers:
       - schedule:
           cron: 0 5 * * *
+          filters: { branches: { only: /^release\/.*/ } }
+      - schedule:
+          cron: 57 6 22 7 *
           filters: { branches: { only: /^release\/.*/ } }
   all:
     jobs:
