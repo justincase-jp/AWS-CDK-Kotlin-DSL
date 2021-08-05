@@ -41,6 +41,7 @@ publishing {
         repositories {
             maven {
                 name = "GitHubPackages"
+                isAllowInsecureProtocol = true
                 url = uri("http://localhost:38877")
                 credentials {
                     username =
