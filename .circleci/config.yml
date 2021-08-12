@@ -1,85 +1,8 @@
 version: 2.1
 
 jobs:
-  buildUnhandled:
-    resource_class: medium+
-    environment: { JAVA_TOOL_OPTIONS: -Xmx3g }
+  build:
     docker:
-      - image: sdyip/gradle:7.0
+      - image: alpine
     steps:
-      - checkout
-      - run: gradle -S buildUnhandled
-
-  buildSpecified:
-    resource_class: medium+
-    environment: { JAVA_TOOL_OPTIONS: -Xmx3g }
-    docker:
-      - image: sdyip/gradle:7.0
-    steps:
-      - checkout
-      - run: gradle -S buildSpecified
-
-  buildSpecifiedFromGitHub:
-    resource_class: medium+
-    docker:
-      - image: sdyip/gradle:7.0
-    steps:
-      - checkout
-      - run: gradle -S buildAndPublishSpecifiedVersionForCI
-
-  publishUnhandled:
-    resource_class: medium+
-    environment: { JAVA_TOOL_OPTIONS: -Xmx3g }
-    docker:
-      - image: sdyip/gradle:7.0
-    steps:
-      - run: |
-          apk add --no-cache git openssh-client
-      - checkout
-      - run: |
-          if [ -z ${CIRCLE_TAG+x} ]; then
-            git ls-remote --exit-code origin refs/tags/v"${CIRCLE_BRANCH#release/}"
-          fi
-          gradle -S publishUnhandled
-
-  publishDslCommon:
-    resource_class: medium+
-    environment: { JAVA_TOOL_OPTIONS: -Xmx3g }
-    docker:
-      - image: sdyip/gradle:7.0
-    steps:
-      - checkout
-      - run: "gradle -S :dsl-common:publish"
-
-workflows:
-  version: 2
-
-  untagged:
-    jobs:
-      - buildUnhandled
-      - buildSpecified
-  current:
-    jobs:
-      - publishUnhandled
-    triggers:
-      - schedule:
-          cron: 0 5 * * *
-          filters: { branches: { only: /^release\/.*/ } }
-      - schedule:
-          cron: 21 9 7 8 *
-          filters: { branches: { only: /^release\/.*/ } }
-  all:
-    jobs:
-      - publishUnhandled:
-          filters:
-            tags: { only: /^v.*/ }
-            branches: { only: /x^/ }
-      - publishDslCommon:
-          filters:
-            tags: { only: /^v.*/ }
-            branches: { only: /x^/ }
-
-  publishSpecificVersion:
-    jobs:
-      - buildSpecifiedFromGitHub:
-          filters: { branches: { only: /^publishing\/.*/ } }
+      - run: ':'
